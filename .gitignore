@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/xmlconfigier
+xmlconfigier.so
+xmlconfigier.dylib
+xmlconfigier.dll
+xmlconfigier.a
+xmlconfigier.lib
+xmlconfigier-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst

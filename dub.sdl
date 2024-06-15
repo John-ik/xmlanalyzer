@@ -1,0 +1,6 @@
+name "xmlconfigier"
+description "D app for control a lot of xml configs"
+authors "johnik"
+copyright "Copyright © 2024, johnik"
+license "proprietary"
+dependency "dxml" version="~>0.4.4"
