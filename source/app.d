@@ -158,7 +158,11 @@ void main(string[] args)
 
 	// writeln(xmlDocs);
 
-	string output = writeXmlFromDOM(xmlDocs[0]);
+	DOMEntity!string godXml;
+	godXml = xmlDocs[0];
+	godXml.children()[1].children()[1] = xmlDocs[1].children()[0].children()[0];
+
+	string output = writeXmlFromDOM(godXml);
 	writeln(output);
 
 
