@@ -14,3 +14,5 @@ xmlconfigier-test-*
 *.o
 *.obj
 *.lst
+
+project-name/
