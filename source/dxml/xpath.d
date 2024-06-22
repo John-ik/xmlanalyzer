@@ -220,17 +220,17 @@ template process (R)
             return xpath(node, path.children[0]);
         case grammarName~".AbbreviatedAbsoluteLocationPath":
             push(node);
-            return xpath(getByAxis!(Axes.descendant_or_self)(node), path.children[0]);
+            return xpath(getByAxis(node, Axes.descendant_or_self), path.children[0]);
         case grammarName~".RelativeLocationPath":
             push(node);
             ParseTree steper = path.find(grammarName~".Step");
             if (path.matches.length > 1 && path.matches[1] == "//")
-                return xpath(stepNode(node, steper).getByAxis!(Axes.descendant_or_self)(), path.children[$-1]);
+                return xpath(stepNode(node, steper).getByAxis(Axes.descendant_or_self), path.children[$-1]);
             else
             {
                 if (path.children.length > 1)
                     return xpath(stepNode(node, steper), path.children[$-1]);
-                return xpath(node, path.children[$-1]);
+                return xpath(node, path.children[$-1]); // goto last step
             }
         case grammarName~".Step":
             Axes resultAxis = getAxis(path);
@@ -261,46 +261,77 @@ template process (R)
 
     // getter for all axis (node type)
     /// Для множества как параметра
-    Set!(DOMEntity!R) getByAxis(Axes axis) (Set!(DOMEntity!R) set)
+    Set!(DOMEntity!R) getByAxis(Set!(DOMEntity!R) set, Axes axis)
     {
         typeof(return) result;
         foreach (node; set)
-            result ~= getByAxis!(axis)(node);
+            result ~= getByAxis(node, axis);
         return result;
     }
-    /// Весь стек кроме текущего элемента.
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor)(DOMEntity!R node) => stack - node;
-    /// Весь стек и текущий элемент. Возможно он уже включен
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor_or_self)(DOMEntity!R node) => stack ~ node;
-    /// Просто дети
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.child)(DOMEntity!R node) => typeof(this)(node.children());
-    /// Все потомки
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant)(DOMEntity!R node)
+    /// Для одного узла
+    Set!(DOMEntity!R) getByAxis(DOMEntity!R node, Axes axis)
     {
         typeof(return) result;
-        if (node.type() != EntityType.elementStart) return result;
-        foreach (child; node.children())
-            result ~= getByAxis!(Axes.descendant_or_self)(child);
-        return result;
+        final switch (axis)
+        {
+        case Axes.ancestor: return typeof(return)(stack) - node;
+        case Axes.ancestor_or_self: return typeof(return)(stack) ~ node;
+        case Axes.attribute: return cast(noreturn) assert(1);
+        case Axes.child: return typeof(return)(node.children());
+        case Axes.descendant_or_self:
+            result ~= node;
+            goto case;
+        case Axes.descendant:
+            if (node.type() != EntityType.elementStart) return result;
+            foreach (child; node.children())
+                result ~= getByAxis(child, Axes.descendant_or_self);
+            return result;
+        case Axes.following:
+        case Axes.following_sibling:
+            return cast(noreturn) assert(1); //TODO: IMPL
+        case Axes.namespace:
+            return cast(noreturn) assert(1);
+        case Axes.parent: 
+            assert(canFind(stack[$-2].children(), node));
+            return typeof(return)(stack[$-2]);
+        case Axes.preceding:
+        case Axes.preceding_sibling:
+            return cast(noreturn) assert(1); //TODO: IMPL
+        case Axes.self: return typeof(return)(node);
+        }
     }
-    /// Все потомки и текущий элемент
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant_or_self)(DOMEntity!R node)
-    {
-        typeof(return) result;
-        result ~= node;
-        if (node.type() != EntityType.elementStart) return result;
-        foreach (child; node.children())
-            result ~= getByAxis!(Axes.descendant_or_self)(child);
-        return result;
-    }
-    /// Родитель
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.parent)(DOMEntity!R node)
-    out(res; node in getByAxis!(Axes.child)(res))
-    {
-        return typeof(stack[$-1]);
-    }
-    /// Текущий элеметн
-    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.self)(DOMEntity!R node) => typeof(this)(node);
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor)(DOMEntity!R node) => stack - node;
+    // /// Весь стек и текущий элемент. Возможно он уже включен
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor_or_self)(DOMEntity!R node) => stack ~ node;
+    // /// Просто дети
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.child)(DOMEntity!R node) => typeof(this)(node.children());
+    // /// Все потомки
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant)(DOMEntity!R node)
+    // {
+    //     typeof(return) result;
+    //     if (node.type() != EntityType.elementStart) return result;
+    //     foreach (child; node.children())
+    //         result ~= getByAxis!(Axes.descendant_or_self)(child);
+    //     return result;
+    // }
+    // /// Все потомки и текущий элемент
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant_or_self)(DOMEntity!R node)
+    // {
+    //     typeof(return) result;
+    //     result ~= node;
+    //     if (node.type() != EntityType.elementStart) return result;
+    //     foreach (child; node.children())
+    //         result ~= getByAxis!(Axes.descendant_or_self)(child);
+    //     return result;
+    // }
+    // /// Родитель
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.parent)(DOMEntity!R node)
+    // out(res; node in getByAxis!(Axes.child)(res))
+    // {
+    //     return typeof(stack[$-1]);
+    // }
+    // /// Текущий элеметн
+    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.self)(DOMEntity!R node) => typeof(this)(node);
 }
 
 
