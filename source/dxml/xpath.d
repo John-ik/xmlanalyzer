@@ -172,7 +172,7 @@ template process (R)
     }
 
 
-    Set!(DOMEntity!R) xpath (DOMEntity!R node, ParseTree path)
+    Set!(Expr) xpath (DOMEntity!R node, ParseTree path)
     {
         typeof(return) set;
         debug { import std.stdio : writefln; try { writefln("\n\t%s\t%s\n%s", node.name(), stack.length ? stack[$-1].name() : "", path); } catch (Error) {} }
@@ -201,7 +201,10 @@ template process (R)
                 return xpath(node, path.children[$-1]);
             }
         case grammarName~".Step":
-            return stepNode(node, path);
+            typeof(return) result;
+            foreach(res; stepNode(node, path))
+                result ~= Expr(res);
+            return result; 
         default:
             debug {import std.stdio : writeln; writeln(path.name);}
             return set;
@@ -210,7 +213,7 @@ template process (R)
         return set;
     }
 
-    Set!(DOMEntity!R) xpath (Set!(DOMEntity!R) nodes, ParseTree path)
+    Set!(Expr) xpath (Set!(DOMEntity!R) nodes, ParseTree path)
     {
         typeof(return) set;
         foreach (node; nodes[])
