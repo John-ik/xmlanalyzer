@@ -2,6 +2,7 @@ import std.logger;
 
 import std.stdio;
 import std.file;
+import std.path;
 import std.algorithm : map, joiner, filter, copy;
 
 import std.array : array, Appender, appender;
@@ -12,8 +13,11 @@ import std.meta : AliasSeq;
 
 import dxml.dom;
 import dxml.parser;
+import dxml.util;
 import dxml.writer;
-import std.path;
+
+import dxml.xpath;
+
 
 alias AddNewRoot = Flag!"AddNewRoot";
 
@@ -65,7 +69,7 @@ string writeXmlFromEntitis (IR)(IR xmlEntities, AddNewRoot addNewRoot = AddNewRo
 			writer.writePI(entity.name(), entity.text());
 			break;
 		case EntityType.text:
-			writer.writeText(entity.text());
+			writer.writeText(entity.text().stripIndent());
 			break;
 
 		}
@@ -118,7 +122,7 @@ string writeXmlFromDOM (IR)(IR xmlDom)
 			writer.writePI(node.name(), node.text());
 			break;
 		case EntityType.text:
-			writer.writeText(node.text());
+			writer.writeText(node.text().stripIndent());
 			break;
 		}
 	}
@@ -126,6 +130,26 @@ string writeXmlFromDOM (IR)(IR xmlDom)
 	writeNode(xmlDom);
 
 	return writer.output().data();
+}
+
+
+enum FILENAME_ATTR = "filename";
+/// Добавить путь к файлу как атребут корнегого элемента
+void addFilePathAsAttr (IR) (IR node, string filePath)
+in (isValidPath(filePath))
+{
+	node.children()[0].attributes() ~= IR.Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1));
+}
+
+
+/// Чтоб обновить все позиции в дереве DOM  
+/// Не рекомендуется часто вызывать
+DOMEntity!S restruct (S) (DOMEntity!S node)
+{
+	// ну типо костыль.
+	// Дерево (пишется в)-> текст xml (парсится)-> дерево
+	// Просто, но затратно
+	return parseDOM(writeXmlFromDOM(node));
 }
 
 
@@ -153,19 +177,26 @@ void main(string[] args)
 		auto a = readText(path).parseDOM().ifThrown(entityNone());
 		if (a == entityNone())
 			continue;
+		addFilePathAsAttr(a, path);
 		xmlDocs ~= a;
 	}
 
 	// writeln(xmlDocs);
 
 	DOMEntity!string godXml;
-	godXml = xmlDocs[0];
-	godXml.children()[1].children()[1] = xmlDocs[1].children()[0].children()[0];
+	godXml = xmlDocs[2];
+	//BUG: так как я убрал @property и добавил ref к .children() то возможны UB позиции текста.
+	// В идеале, если необходима позиция то нужно пересобирать дерево по новой.
+	// дерево закинул в writeXmlFromDOM и на вход в parseDOM и вау-ля. Дерево пересобрано
+	// godXml.children()[1].children() ~= xmlDocs[1].children()[0].children()[0];
+	// Пофикшено? restruct()
 
 	string output = writeXmlFromDOM(godXml);
+	writeln(godXml);
 	writeln(output);
 
-
+	writefln("%(>%s,\n%)", godXml["/cfg//sender"]);
+	// writeln(map!(a => a.text)(godXml["/cfg/things//text()"][]));
 
 	// God-xml
 	
