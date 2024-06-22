@@ -73,7 +73,11 @@ template process (R)
             alias TypeFromAxes = DOMEntity!R;
     }
     
-    alias Result = std.sumtype.SumType!(Set!(DOMEntity!R), Set!(DOMEntity!R.Attribute), Set!R);
+    alias Expr = std.sumtype.SumType!(
+        R, /// namespace or (text for [somenode="text content this node"])
+        DOMEntity!R.Attribute, /// attribute
+        DOMEntity!R, /// node of DOM
+    );
 
     private DOMEntity!(R)[] stack;
     private DOMEntity!R parent() {
@@ -125,7 +129,7 @@ template process (R)
     Set!(DOMEntity!R) stepNode (DOMEntity!R node, ParseTree path)
     in(path.name == grammarName~".Step")
     {
-        Set!(DOMEntity!R) set;
+        typeof(return) set;
         if (path.matches[0] == ".") 
             set ~= node;
         else if (path.matches[0] == "..")
@@ -141,7 +145,9 @@ template process (R)
                 final switch (nodeTest.children[0].name)
                 {
                 case grammarName~".NameTest":
-                    with (EntityType) if (child.type() !in [elementStart:0, elementEnd:0, elementEmpty:0, pi:0]) continue;
+                    with (EntityType)
+                        if (child.type() !in [elementStart:0, elementEnd:0, elementEmpty:0, pi:0])
+                            continue;
                     if (nodeTest.matches[0] == "*" || child.name() == nodeTest.matches[0])
                         set ~= child;
                     break;
