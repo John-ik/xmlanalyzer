@@ -43,29 +43,29 @@ struct Set (T)
         return find(_payload, lhs);
     }
 
-    auto opBinary(string op : "~", R : T)(const R rhs) const => Set(_payload ~ rhs);
-    auto opBinaryRight(string op : "~", R : T)(const R lhs) const => Set(lhs ~ _payload);
+    auto opBinary(string op : "~", R : T)(R rhs) => Set(_payload ~ rhs);
+    auto opBinaryRight(string op : "~", R : T)(R lhs) => Set(lhs ~ _payload);
 
-    auto opBinary(string op : "-", R : T)(const R rhs) const
+    auto opBinary(string op : "-", R : T)(const R rhs)
     {
-        typeof(this) result;
+        Set!T result;
         foreach (T val; _payload)
             if (val != rhs)
                 result ~= val;
         return result;
     }
-    auto opBinary(string op, R : typeof(this))(const R rhs) const
+    auto opBinary(string op, R : typeof(this))(R rhs)
     {
-        typeof(this) result;
+        Set!T result;
         foreach (T l; _payload)
             foreach (T r; rhs)
                 if (l != r)
                     result ~= l;
         return result;
     }
-    auto opBinaryRight(string op, L : typeof(this))(const L lhs) const
+    auto opBinaryRight(string op, L : typeof(this))(L lhs)
     {
-        typeof(this) result;
+        Set!T result;
         foreach (T r; _payload)
             foreach (T l; lhs)
                 if (l != r)
