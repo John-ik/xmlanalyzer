@@ -1,0 +1,19 @@
+<cfg>
+
+    <service name="Service2"/>
+
+    <plugins config-path="/path/to/services/service2/defaults" module-path="/path/to/lib/Plugins">
+
+        <plugin name="Service2Plugin1"
+                cfgName="Service2Plugin1.xml"
+                mode="on"
+                application="service2-app1" />
+
+        <plugin name="Service2Plugin2"
+                cfgName="Service2Plugin2.xml"
+                mode="off"
+                application="service2-app2" />
+
+   </plugins>
+
+</cfg>

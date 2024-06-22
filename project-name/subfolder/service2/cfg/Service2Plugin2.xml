@@ -1,0 +1,39 @@
+<cfg>
+    <things>
+        <connection1 name="plugin1-pri">
+            <laddr>172.16.1.3</laddr>
+            <raddr>127.109.115.41</raddr>
+            <rport>26051</rport>
+        </connection1>
+
+        <connection1 name="plugin1-sec">
+            <laddr>172.16.131.3</laddr>
+            <raddr>127.109.115.41</raddr>
+            <rport>26051</rport>
+        </connection1>
+
+        <file-output name="plugin1-probe">
+            <filename>/var/log/services/alarmservice/plugin1-probe.txt</filename>
+            <rotate>true</rotate>
+            <append>true</append>
+            <max-size>10M</max-size>
+            <max-files-index>0</max-files-index>
+        </file-output>
+    </things>
+            
+    <applications>
+        <application name="Service2-app2">
+            <obmen-addr address="127.109.115.41" port="12345"/>
+            <db-client type="generic"/>
+
+            <source-list>
+                <source name="SourceName" notifier="plugin1"/>
+            </source-list>
+
+            <data-pair notifier="plugin1" subscriber="plugin1-pri"/>
+            <data-pair notifier="plugin1" subscriber="plugin1-sec"/>
+            <data-pair notifier="plugin1" subscriber="plugin1-probe"/>
+        </application>
+    </applications>
+        
+</cfg>

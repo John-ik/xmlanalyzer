@@ -1,0 +1,16 @@
+<databases>
+    <core user="adm" password="123" dbname="database">
+        <host address="localhost" port="5432"/>
+    </core>
+
+    <aux>
+        <log user="adm2" password="123" dbname="databaselog">
+            <host address="172.16.1.1" port="5432"/>
+            <host address="172.16.131.1" port="5432"/>
+        </log>
+        <log user="adm2" password="123" dbname="databaselog">
+            <host address="172.16.1.2" port="5432"/>
+            <host address="172.16.131.2" port="5432"/>
+        </log>
+    </aux>
+</databases>

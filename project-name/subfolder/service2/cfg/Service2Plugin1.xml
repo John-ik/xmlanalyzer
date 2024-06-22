@@ -1,0 +1,66 @@
+<cfg>
+    <things> 
+        <some-transport name="in-stream">
+            <communicator role="server"
+                    id="1"
+                    device="1"
+                    channel="1"
+                    protocol="protocol1">
+			</communicator>
+
+            <sender remote="127.109.115.41"
+                    port="24051"
+                    local="172.16.1.3"
+            />
+
+            <receiver local="172.16.1.3"
+                      multicastGroup="127.109.115.41"
+                      port="24051"
+                      bufSize="1024"
+                      reuse="true"
+            />
+        </some-transport>
+
+        <some-transport name="out-stream">
+		    <communicator role="client"
+		            protocol="protocol1"
+		            id="1"
+		            device="1"
+		            channel="1"
+		 
+		            acknowledge="false"
+		            dataType="application/json-rpc"
+		            destId="1"
+		            rate="1000"
+		            maxInputMessagesQueue="14"
+		    ></communicator>
+		 
+		    <sender remote="127.109.115.41"
+		            port="24051"
+		            local="172.16.1.3"
+		            />
+		 
+		    <receiver local="172.16.1.3"
+		              port="24051"
+		              bufSize="1024"
+		              reuse="true"
+		              multicastGroup="127.109.115.41"
+		            />
+		</some-transport>
+    </things>
+
+    <applications>
+        <application name="service2-app1">
+
+            <state-timeout>00:00:05:000</state-timeout>
+
+            <data-pair notifier="notifier1" subscriber="out-stream"/>
+            <notifier name="notifier1"/>
+
+            <data-pair notifier="in-stream" subscriber="subscriber1"/>
+            <subscriber name="subscriber1"/>
+
+            <dictionary path="/path/to/services/alarmservice/defaults/dictionary.xml"/>
+        </application>
+    </applications>
+</cfg>
