@@ -131,7 +131,8 @@ template process (R)
         }
     }
 
-
+    /// Ось атрибутов здесь  
+    /// Также и проверка
     Set!(DOMEntity!R.Attribute) stepAttribute (DOMEntity!R node, ParseTree path)
     in(path.name == grammarName~".Step")
     {
@@ -157,42 +158,43 @@ template process (R)
         return set;
     }
 
-    Set!(DOMEntity!R) stepNode (DOMEntity!R node, ParseTree path)
+    /// Выполнение проверок nodeTest и Predicates  
+    /// Дочерние элементы не берутся. Проверяются только nodes
+    Set!(DOMEntity!R) stepNode (Set!(DOMEntity!R) nodes, ParseTree path)
     in(path.name == grammarName~".Step")
     {
         Set!(DOMEntity!R) set;
         if (path.matches[0] == ".") 
-            set ~= node;
+            set ~= nodes;
         else if (path.matches[0] == "..")
         {
             set ~= parent(); stack = stack[0..$-1];
         }
         else
         {
-            if (node.type() != EntityType.elementStart) return set;
             ParseTree nodeTest = find(path, grammarName~".NodeTest");
-            foreach (DOMEntity!R child; node.children())
+            foreach (DOMEntity!R node; nodes)
             {
                 final switch (nodeTest.children[0].name)
                 {
                 case grammarName~".NameTest":
                     with (EntityType)
-                        if (child.type() !in [elementStart:0, elementEnd:0, elementEmpty:0, pi:0])
+                        if (node.type() !in [elementStart:0, elementEnd:0, elementEmpty:0, pi:0])
                             continue;
-                    if (nodeTest.matches[0] == "*" || child.name() == nodeTest.matches[0])
-                        set ~= child;
+                    if (nodeTest.matches[0] == "*" || node.name() == nodeTest.matches[0])
+                        set ~= node;
                     break;
                 case grammarName~".TypeTest":
                     with (EntityType) final switch (nodeTest.children[0].matches[0])
                     {
                     case "processing-instruction":
-                        if (child.type() == pi) set ~= child; break;
+                        if (node.type() == pi) set ~= node; break;
                     case "comment":
-                        if (child.type() == comment) set ~= child; break;
+                        if (node.type() == comment) set ~= node; break;
                     case "text":
-                        if (child.type() == text) set ~= child; break;
+                        if (node.type() == text) set ~= node; break;
                     case "node":
-                        set ~= child; break;
+                        set ~= node; break;
                     }
 
                     break;
@@ -202,6 +204,9 @@ template process (R)
         // для предикатов
         return set;
     }
+    ///Ditto
+    Set!(DOMEntity!R) stepNode (DOMEntity!R node, ParseTree path) => stepNode(Set!(DOMEntity!R)(node), path);
+
 
 
     Set!(Expr) xpath (DOMEntity!R node, ParseTree path)
@@ -223,18 +228,22 @@ template process (R)
             return xpath(getByAxis(node, Axes.descendant_or_self), path.children[0]);
         case grammarName~".RelativeLocationPath":
             push(node);
-            ParseTree steper = path.find(grammarName~".Step");
-            if (path.matches.length > 1 && path.matches[1] == "//")
-                return xpath(stepNode(node, steper).getByAxis(Axes.descendant_or_self), path.children[$-1]);
-            else
+            if (path.children.length > 1)
             {
-                if (path.children.length > 1)
-                    return xpath(stepNode(node, steper), path.children[$-1]);
-                return xpath(node, path.children[$-1]); // goto last step
+                ParseTree steper = path.find(grammarName~".Step");
+                info(getAxis(steper));
+                auto byAxis = getByAxis(node, getAxis(steper));
+                infof("%(>- %s\v\n%)", byAxis);
+                auto byStep = stepNode(byAxis, steper);
+                infof("%(>- %s\v\n%)", byStep);
+                if (path.matches[1] == "//")
+                    byStep = byStep.getByAxis(Axes.descendant_or_self);
+                infof("%(>- %s\v\n%)", byStep);
+                return xpath(byStep, path.children[$-1]);
             }
+            return xpath(node, path.children[$-1]); // goto last step
         case grammarName~".Step":
             Axes resultAxis = getAxis(path);
-            info(resultAxis);
             if (resultAxis == Axes.namespace)
                 return cast(noreturn) assert(1); //TODO: IMPL
             if (resultAxis == Axes.attribute)
@@ -251,7 +260,7 @@ template process (R)
     Set!(Expr) xpath (Set!(DOMEntity!R) nodes, ParseTree path)
     {
         typeof(return) set;
-        foreach (node; nodes[])
+        foreach (node; nodes)
         {
             set ~= xpath(node, path);
         }
@@ -277,15 +286,15 @@ template process (R)
         case Axes.ancestor: return typeof(return)(stack) - node;
         case Axes.ancestor_or_self: return typeof(return)(stack) ~ node;
         case Axes.attribute: return cast(noreturn) assert(1);
-        case Axes.child: return typeof(return)(node.children());
+        case Axes.child:
+            if (node.type() != EntityType.elementStart) return result;
+            return typeof(return)(node.children());
         case Axes.descendant_or_self:
             result ~= node;
             goto case;
         case Axes.descendant:
             if (node.type() != EntityType.elementStart) return result;
-            foreach (child; node.children())
-                result ~= getByAxis(child, Axes.descendant_or_self);
-            return result;
+            return result ~ getByAxis(node, Axes.child).getByAxis(Axes.descendant_or_self);
         case Axes.following:
         case Axes.following_sibling:
             return cast(noreturn) assert(1); //TODO: IMPL

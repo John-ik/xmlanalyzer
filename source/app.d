@@ -196,7 +196,9 @@ void main(string[] args)
 	writeln(godXml);
 	writeln(output);
 
-	writefln("%(>- %s,\v\n%)", godXml["/.//cfg/@filename"]);
+	assert(godXml["//cfg/@filename"] == godXml["/././*/..//cfg/@filename"]);
+
+	writefln("%(>- %s,\v\n%)", godXml["//cfg/@filename"]);
 	// writeln(map!(a => a.text)(godXml["/cfg/things//text()"][]));
 
 	// God-xml

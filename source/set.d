@@ -8,7 +8,13 @@ struct Set (T)
     deprecated alias ZeroUnit = void[];
     deprecated enum zeroUnit = ZeroUnit.init;
     T[] _payload;
-    alias _payload this;
+
+    T front () => _payload[0];
+    void popFront()
+    {
+        _payload = _payload[1..$];
+    }
+    bool empty () const => _payload.length == 0;
 
     this (T value)
     {
@@ -21,10 +27,12 @@ struct Set (T)
             _payload ~= value;
     }
 
+    size_t length () const => _payload.length;
+
     auto opOpAssign(string op: "~")(T value)
     {
         import std.algorithm : canFind;
-        if (value in this)
+        if (canFind(_payload, value))
             return this;
         _payload ~= value;
         return this;
@@ -32,11 +40,12 @@ struct Set (T)
 
     auto opOpAssign(string op: "~")(Set!T values)
     {
-        foreach (val; values[])
+        foreach (val; values)
             this ~= val;
         return this;
     }
 
+    deprecated /// До лучших времен
     auto opBinaryRight(string op : "in", R : T)(const R lhs) const
     {
         import std.algorithm : find;
@@ -45,6 +54,13 @@ struct Set (T)
 
     auto opBinary(string op : "~", R : T)(R rhs) => Set(_payload ~ rhs);
     auto opBinaryRight(string op : "~", R : T)(R lhs) => Set(lhs ~ _payload);
+    auto opBinary(string op : "~", R : T)(Set!R rhs)
+    {
+        Set!T result;
+        result ~= this;
+        result ~= rhs;
+        return result;
+    }
 
     auto opBinary(string op : "-", R : T)(const R rhs)
     {
@@ -54,7 +70,7 @@ struct Set (T)
                 result ~= val;
         return result;
     }
-    auto opBinary(string op, R : typeof(this))(R rhs)
+    auto opBinary(string op : "-", R : typeof(this))(R rhs)
     {
         Set!T result;
         foreach (T l; _payload)
@@ -63,7 +79,7 @@ struct Set (T)
                     result ~= l;
         return result;
     }
-    auto opBinaryRight(string op, L : typeof(this))(L lhs)
+    auto opBinaryRight(string op : "-", L : typeof(this))(L lhs)
     {
         Set!T result;
         foreach (T r; _payload)
@@ -72,4 +88,6 @@ struct Set (T)
                     result ~= l;
         return result;
     }
+
+    bool opCast(T : bool)() const => !this.empty;
 }
