@@ -1,5 +1,10 @@
 module dxml.xpath;
 
+debug import  std.logger;
+
+import std.algorithm : canFind;
+import std.algorithm : map;
+import std.meta : staticIndexOf;
 
 struct ExactPath
 {
@@ -28,7 +33,6 @@ import set;
 import dxml.dom;
 import dxml.xpath_grammar;
 
-import std.algorithm : canFind;
 
 enum Axes {
     ancestor,
@@ -78,6 +82,14 @@ template process (R)
         DOMEntity!R.Attribute, /// attribute
         DOMEntity!R, /// node of DOM
     );
+    
+    private Set!Expr toExprSet (T)(Set!T set)
+    {
+        typeof(return) result;
+        foreach (e; set)
+            result ~= Expr(e);
+        return result;
+    }
 
     private DOMEntity!(R)[] stack;
     private DOMEntity!R parent() {
@@ -96,10 +108,10 @@ template process (R)
             return Axes.parent;
         
         ParseTree axisSpecifier = path.find(grammarName~".AxisSpecifier");
+        if (axisSpecifier == axisSpecifier.init)
+            return Axes.child;
         if (axisSpecifier.matches[0] == "@")
             return Axes.attribute;
-        if (axisSpecifier.matches[0] == "")
-            return Axes.child;
         
         with(Axes) final switch ( axisSpecifier.matches[0] )
         {
@@ -120,16 +132,35 @@ template process (R)
     }
 
 
-    // Set!(DOMEntity!R.Attribute) stepAttribute (DOMEntity!R node, ParseTree path)
-    // in(path.name == grammarName~".Step")
-    // {
+    Set!(DOMEntity!R.Attribute) stepAttribute (DOMEntity!R node, ParseTree path)
+    in(path.name == grammarName~".Step")
+    {
+        typeof(return) set;
+        info(node);
+        with (EntityType)
+            // http://jmdavisprog.com/docs/dxml/0.4.4/dxml_dom.html#.DOMEntity.attributes
+            if (canFind([elementStart, elementEmpty], node.type()) == false)
+                return set;
 
-    // }
+        ParseTree nodeTest = find(path, grammarName~".NodeTest");
+        
+        if (nodeTest.children[0].name == grammarName~".TypeTest")
+            return set;
+
+        foreach(DOMEntity!R.Attribute attr; node.attributes())
+        {
+            if (nodeTest.matches[0] == "*" || attr.name == nodeTest.matches[0])
+                set ~= attr;
+        }
+        infof("WHY? %s", set);
+        // Какие нафиг предикаты для аттрибутов или их контекстов. ХЗ
+        return set;
+    }
 
     Set!(DOMEntity!R) stepNode (DOMEntity!R node, ParseTree path)
     in(path.name == grammarName~".Step")
     {
-        typeof(return) set;
+        Set!(DOMEntity!R) set;
         if (path.matches[0] == ".") 
             set ~= node;
         else if (path.matches[0] == "..")
@@ -168,6 +199,7 @@ template process (R)
                 }
             }
         }
+        // для предикатов
         return set;
     }
 
@@ -188,12 +220,12 @@ template process (R)
             return xpath(node, path.children[0]);
         case grammarName~".AbbreviatedAbsoluteLocationPath":
             push(node);
-            return xpath(getAll(node), path.children[0]);
+            return xpath(getByAxis!(Axes.descendant_or_self)(node), path.children[0]);
         case grammarName~".RelativeLocationPath":
             push(node);
             ParseTree steper = path.find(grammarName~".Step");
             if (path.matches.length > 1 && path.matches[1] == "//")
-                return xpath(stepNode(node, steper).getAll(), path.children[$-1]);
+                return xpath(stepNode(node, steper).getByAxis!(Axes.descendant_or_self)(), path.children[$-1]);
             else
             {
                 if (path.children.length > 1)
@@ -201,12 +233,15 @@ template process (R)
                 return xpath(node, path.children[$-1]);
             }
         case grammarName~".Step":
-            typeof(return) result;
-            foreach(res; stepNode(node, path))
-                result ~= Expr(res);
-            return result; 
+            Axes resultAxis = getAxis(path);
+            info(resultAxis);
+            if (resultAxis == Axes.namespace)
+                return cast(noreturn) assert(1); //TODO: IMPL
+            if (resultAxis == Axes.attribute)
+                return toExprSet(stepAttribute(node, path));
+            return toExprSet(stepNode(node, path)); 
         default:
-            debug {import std.stdio : writeln; writeln(path.name);}
+            debug error(path.name);
             return set;
         }
         
@@ -223,25 +258,49 @@ template process (R)
         return set;
     }
 
-    Set!(DOMEntity!R) getAll (DOMEntity!R node)
-    {
-        typeof(return) set;
-        if (node.type() != EntityType.elementStart) return typeof(return)(node);
-        foreach (n; node.children())
-        {
-            set ~= n;
-            set ~= getAll(n);
-        }
-        return set;
-    }
 
-    Set!(DOMEntity!R) getAll (Set!(DOMEntity!R) nodes)
+    // getter for all axis (node type)
+    /// Для множества как параметра
+    Set!(DOMEntity!R) getByAxis(Axes axis) (Set!(DOMEntity!R) set)
     {
-        typeof(return) set;
-        foreach(node; nodes)
-            set ~= getAll(node);
-        return set;
+        typeof(return) result;
+        foreach (node; set)
+            result ~= getByAxis!(axis)(node);
+        return result;
     }
+    /// Весь стек кроме текущего элемента.
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor)(DOMEntity!R node) => stack - node;
+    /// Весь стек и текущий элемент. Возможно он уже включен
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor_or_self)(DOMEntity!R node) => stack ~ node;
+    /// Просто дети
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.child)(DOMEntity!R node) => typeof(this)(node.children());
+    /// Все потомки
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant)(DOMEntity!R node)
+    {
+        typeof(return) result;
+        if (node.type() != EntityType.elementStart) return result;
+        foreach (child; node.children())
+            result ~= getByAxis!(Axes.descendant_or_self)(child);
+        return result;
+    }
+    /// Все потомки и текущий элемент
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant_or_self)(DOMEntity!R node)
+    {
+        typeof(return) result;
+        result ~= node;
+        if (node.type() != EntityType.elementStart) return result;
+        foreach (child; node.children())
+            result ~= getByAxis!(Axes.descendant_or_self)(child);
+        return result;
+    }
+    /// Родитель
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.parent)(DOMEntity!R node)
+    out(res; node in getByAxis!(Axes.child)(res))
+    {
+        return typeof(stack[$-1]);
+    }
+    /// Текущий элеметн
+    Set!(DOMEntity!R) getByAxis(Axes axis : Axes.self)(DOMEntity!R node) => typeof(this)(node);
 }
 
 

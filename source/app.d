@@ -1,4 +1,4 @@
-import std.logger;
+debug import std.logger;
 
 import std.stdio;
 import std.file;
@@ -178,7 +178,7 @@ void main(string[] args)
 		if (a == entityNone())
 			continue;
 		addFilePathAsAttr(a, path);
-		xmlDocs ~= a;
+		xmlDocs ~= restruct(a);
 	}
 
 	// writeln(xmlDocs);
@@ -195,7 +195,7 @@ void main(string[] args)
 	writeln(godXml);
 	writeln(output);
 
-	writefln("%(>%s,\n%)", godXml["/cfg//sender"]);
+	writefln("%(>- %s,\v\n%)", godXml["//cfg/@filename"]);
 	// writeln(map!(a => a.text)(godXml["/cfg/things//text()"][]));
 
 	// God-xml
