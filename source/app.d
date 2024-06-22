@@ -174,7 +174,8 @@ void main(string[] args)
 	DOMEntity!string[] xmlDocs;
 	foreach (path; xmlFiles)
 	{
-		auto a = readText(path).parseDOM().ifThrown(entityNone());
+		if ( !(isFile(path) && extension(path) == ".xml")) continue;
+		auto a = readText(path).parseDOM();
 		if (a == entityNone())
 			continue;
 		addFilePathAsAttr(a, path);
@@ -195,7 +196,7 @@ void main(string[] args)
 	writeln(godXml);
 	writeln(output);
 
-	writefln("%(>- %s,\v\n%)", godXml["//cfg/@filename"]);
+	writefln("%(>- %s,\v\n%)", godXml["/.//cfg/@filename"]);
 	// writeln(map!(a => a.text)(godXml["/cfg/things//text()"][]));
 
 	// God-xml
