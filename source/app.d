@@ -153,7 +153,7 @@ DOMEntity!S restruct (S) (DOMEntity!S node)
 }
 
 
-void main(string[] args)
+int main(string[] args)
 {
 	infof("Args: %s", args);
 	
@@ -229,4 +229,5 @@ void main(string[] args)
 	// auto output = writeXmlFromEntitis(xmlDocs, AddNewRoot.yes);
 
 	// writeln(output);
+	return 0;
 }

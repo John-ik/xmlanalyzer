@@ -91,11 +91,13 @@ template process (R)
         return result;
     }
 
+    deprecated
     private DOMEntity!(R)[] stack;
-    private DOMEntity!R parent() {
+    deprecated    private DOMEntity!R parent() {
         // scope(exit) stack = stack[0..$-1];
         return stack[$-1];
     }
+    deprecated
     private void push(DOMEntity!R value) { stack ~= value; }
 
 
@@ -165,10 +167,10 @@ template process (R)
     {
         Set!(DOMEntity!R) set;
         if (path.matches[0] == ".") 
-            set ~= nodes;
+            set = nodes;
         else if (path.matches[0] == "..")
         {
-            set ~= parent(); stack = stack[0..$-1];
+            set = nodes; // Дочерние элементы не беруться. Родитель уже взят осью в xpath case
         }
         else
         {
@@ -212,7 +214,7 @@ template process (R)
     Set!(Expr) xpath (DOMEntity!R node, ParseTree path)
     {
         typeof(return) set;
-        debug { import std.stdio : writefln; try { writefln("\n\t%s\t%s\n%s", node.name(), stack.length ? stack[$-1].name() : "", path); } catch (Error) {} }
+        debug { import std.stdio : writefln; try { writefln("\n\t%s\n%s", node.name(), path); } catch (Error) {} }
         
         switch (path.name)
         {
@@ -221,13 +223,10 @@ template process (R)
         case grammarName~".LocationPath":
             return xpath(node, path.children[0]);
         case grammarName~".AbsoluteLocationPath":
-            push(node);
             return xpath(node, path.children[0]);
         case grammarName~".AbbreviatedAbsoluteLocationPath":
-            push(node);
             return xpath(getByAxis(node, Axes.descendant_or_self), path.children[0]);
         case grammarName~".RelativeLocationPath":
-            push(node);
             if (path.children.length > 1)
             {
                 ParseTree steper = path.find(grammarName~".Step");
@@ -245,7 +244,7 @@ template process (R)
         case grammarName~".Step":
             Axes resultAxis = getAxis(path);
             if (resultAxis == Axes.namespace)
-                return cast(noreturn) assert(1); //TODO: IMPL
+                return assert(0); //TODO: IMPL
             if (resultAxis == Axes.attribute)
                 return toExprSet(stepAttribute(node, path));
             return toExprSet(stepNode(node, path)); 
@@ -283,9 +282,14 @@ template process (R)
         typeof(return) result;
         final switch (axis)
         {
-        case Axes.ancestor: return typeof(return)(stack) - node;
-        case Axes.ancestor_or_self: return typeof(return)(stack) ~ node;
-        case Axes.attribute: return cast(noreturn) assert(1);
+        case Axes.ancestor_or_self: 
+            result ~= node;
+            goto case;
+        case Axes.ancestor:
+            if (node.type() == EntityType.elementStart && node.name() == "") 
+                return result; // Если элемент корневой
+            return result ~ getByAxis(node, Axes.parent).getByAxis(Axes.ancestor_or_self);
+        case Axes.attribute: return assert(0);
         case Axes.child:
             if (node.type() != EntityType.elementStart) return result;
             return typeof(return)(node.children());
@@ -297,15 +301,15 @@ template process (R)
             return result ~ getByAxis(node, Axes.child).getByAxis(Axes.descendant_or_self);
         case Axes.following:
         case Axes.following_sibling:
-            return cast(noreturn) assert(1); //TODO: IMPL
+            return assert(0); //TODO: IMPL
         case Axes.namespace:
-            return cast(noreturn) assert(1);
+            return assert(0);
         case Axes.parent: 
-            assert(canFind(stack[$-2].children(), node));
-            return typeof(return)(stack[$-2]);
+            assert(canFind(node.parent().children(), node));
+            return typeof(return)(node.parent());
         case Axes.preceding:
         case Axes.preceding_sibling:
-            return cast(noreturn) assert(1); //TODO: IMPL
+            return assert(0); //TODO: IMPL
         case Axes.self: return typeof(return)(node);
         }
     }

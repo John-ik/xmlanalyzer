@@ -15,3 +15,4 @@ xmlconfigier-test-*
 *.obj
 *.lst
 
+.vscode/launch.json

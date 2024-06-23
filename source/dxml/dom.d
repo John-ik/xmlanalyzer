@@ -777,6 +777,12 @@ public:
     }
 
     // My edition
+    ref DOMEntity parent ()
+    in( !(this.type() == EntityType.elementStart && this.name().empty), "Root element hasnt parent")
+    {
+        return *_parent;
+    }
+
     import dxml.xpath;
     import set;
     import std.conv : text;
@@ -828,6 +834,7 @@ private:
     Attribute[] _attributes;
     SliceOfR _text;
     DOMEntity[] _children;
+    DOMEntity* _parent; // my edition
 }
 
 /// Ditto
@@ -1146,7 +1153,14 @@ void _parseDOM(ER, DE)(ref ER range, ref DE parent, ER.SliceOfR[] path = null)
         put(children, child);
     }
 
+
     parent._children = children.data;
+    // My edit
+    DE* p = new DE;
+    *p = parent;
+    foreach (ref child; children)
+        child._parent = p;
+    // <-- My edit
 }
 
 version(dxmlTests) unittest
