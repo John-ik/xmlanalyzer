@@ -4,6 +4,7 @@ public import pegged.grammar;
 
 ParseTree parseXPath (string xpath)
 {
+    if (xpath == "") return ParseTree.init;
     ParseTree a = XPathMini(xpath);
     if (a.successful == false) throw new XPathParserException(a.failMsg);
     return a;
@@ -23,7 +24,7 @@ mixin(grammar(`
 XPathMini:
     LocationPath    <- (AbsoluteLocationPath
                     /   RelativeLocationPath
-                    ) eoi
+                    ) spacing eoi
     AbsoluteLocationPath    <-  AbbreviatedAbsoluteLocationPath
                             /   '/' RelativeLocationPath?
     AbbreviatedAbsoluteLocationPath <-  '//' RelativeLocationPath

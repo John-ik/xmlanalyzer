@@ -139,7 +139,6 @@ template process (R)
     in(path.name == grammarName~".Step")
     {
         typeof(return) set;
-        info(node);
         with (EntityType)
             // http://jmdavisprog.com/docs/dxml/0.4.4/dxml_dom.html#.DOMEntity.attributes
             if (canFind([elementStart, elementEmpty], node.type()) == false)
@@ -155,7 +154,6 @@ template process (R)
             if (nodeTest.matches[0] == "*" || attr.name == nodeTest.matches[0])
                 set ~= attr;
         }
-        infof("WHY? %s", set);
         // Какие нафиг предикаты для аттрибутов или их контекстов. ХЗ
         return set;
     }
@@ -214,7 +212,7 @@ template process (R)
     Set!(Expr) xpath (DOMEntity!R node, ParseTree path)
     {
         typeof(return) set;
-        debug { import std.stdio : writefln; try { writefln("\n\t%s\n%s", node.name(), path); } catch (Error) {} }
+        // debug { import std.stdio : writefln; try { writefln("\n\t%s\n%s", node.name(), path); } catch (Error) {} }
         
         switch (path.name)
         {
@@ -230,14 +228,14 @@ template process (R)
             if (path.children.length > 1)
             {
                 ParseTree steper = path.find(grammarName~".Step");
-                info(getAxis(steper));
+                // info(getAxis(steper));
                 auto byAxis = getByAxis(node, getAxis(steper));
-                infof("%(>- %s\v\n%)", byAxis);
+                // infof("%(>- %s\v\n%)", byAxis);
                 auto byStep = stepNode(byAxis, steper);
-                infof("%(>- %s\v\n%)", byStep);
+                // infof("%(>- %s\v\n%)", byStep);
                 if (path.matches[1] == "//")
                     byStep = byStep.getByAxis(Axes.descendant_or_self);
-                infof("%(>- %s\v\n%)", byStep);
+                // infof("%(>- %s\v\n%)", byStep);
                 return xpath(byStep, path.children[$-1]);
             }
             return xpath(node, path.children[$-1]); // goto last step
@@ -247,9 +245,9 @@ template process (R)
                 return assert(0); //TODO: IMPL
             if (resultAxis == Axes.attribute)
                 return toExprSet(stepAttribute(node, path));
-            return toExprSet(stepNode(node, path)); 
+            return node.getByAxis(resultAxis).stepNode(path).toExprSet(); 
         default:
-            debug error(path.name);
+            debug error(path);
             return set;
         }
         
