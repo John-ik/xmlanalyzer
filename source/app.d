@@ -196,9 +196,14 @@ int main(string[] args)
 	writeln(godXml);
 	writeln(output);
 
-	assert(godXml["//cfg/@filename"] == godXml["/././*/..//cfg/@filename"]);
+	// assert(godXml["//cfg/@filename"] == godXml["/././*/..//cfg/@filename"]);
+	string line;
+	write("Enter XPath: ");
+	while ((line = stdin.readln()) !is null) {
+		writefln("%(>- %s\n%)", godXml[line]);
+		write("Enter XPath: ");
+	}
 
-	writefln("%(>- %s,\v\n%)", godXml["//cfg/@filename"]);
 	// writeln(map!(a => a.text)(godXml["/cfg/things//text()"][]));
 
 	// God-xml
