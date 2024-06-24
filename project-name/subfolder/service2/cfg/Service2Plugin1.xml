@@ -1,3 +1,4 @@
+<?pi?>
 <cfg>
     <things> 
         <some-transport name="in-stream">

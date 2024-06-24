@@ -179,7 +179,7 @@ template process (R)
                 {
                 case grammarName~".NameTest":
                     with (EntityType)
-                        if (node.type() !in [elementStart:0, elementEnd:0, elementEmpty:0, pi:0])
+                        if (node.type() !in [elementStart:0, elementEmpty:0])
                             continue;
                     if (nodeTest.matches[0] == "*" || node.name() == nodeTest.matches[0])
                         set ~= node;
@@ -197,6 +197,11 @@ template process (R)
                         set ~= node; break;
                     }
 
+                    break;
+                case grammarName~".PiTest":
+                    ParseTree piTest = find(nodeTest, grammarName~".PiTest");
+                    if (node.type() == EntityType.pi && node.name() == piTest.children[0].matches[0][1..$-1])
+                        set ~= node;
                     break;
                 }
             }

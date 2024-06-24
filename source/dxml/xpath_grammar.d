@@ -41,13 +41,25 @@ XPathMini:
             /   AxisSpecifier NodeTest # Predicate*
     AbbreviatedStep <-  '..'
                     /   '.'
+
     AxisSpecifier   <-  AxisName '::'
                     /   AbbreviatedAxisSpecifier
-    NodeTest    <-  NameTest
-                |   TypeTest
+
+    NodeTest    <-  PiTest
+                /   TypeTest
+                /   NameTest
+    PiTest  <-  'processing-instruction' '(' Literal ')'
     TypeTest    <- ('processing-instruction' / 'comment' / 'text' / 'node') '()'
-    NameTest    <-  Name
-                |   '*'
+    NameTest    <-  '*'
+                /   Name
+
+    #Predicate   <-  '[' Expr ']'
+    #Expr  <-  orExpr
+    #PrimaryExpr <-  VariableReference
+    #            |   '(' Expr ')'
+    #            |   Literal
+    #            |   Number
+    #            |   FunctionCall
 
     AbbreviatedAxisSpecifier    <- '@'?
     AxisName    <-  'ancestor-or-self'	
@@ -67,6 +79,9 @@ XPathMini:
     NameStartChar <- ":" / [A-Z] / "_" / [a-z] / [\xC0-\xD6\xD8-\xF6]
     NameChar <- NameStartChar / "-" / "." / [0-9] / '\xB7'
     Name <~ NameStartChar (NameChar)*
+
+    Literal <~  quote (!quote .)* quote
+            /   doublequote (!doublequote .)* doublequote
 `));
 
 /*

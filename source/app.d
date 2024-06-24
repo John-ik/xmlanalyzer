@@ -10,6 +10,7 @@ import std.range : walkLength, take, ElementType;
 import std.typecons : Flag, Yes, No;
 import std.exception : ifThrown, enforce;
 import std.meta : AliasSeq;
+import std.traits : isInstanceOf;
 
 import dxml.dom;
 import dxml.parser;
@@ -135,10 +136,13 @@ string writeXmlFromDOM (IR)(IR xmlDom)
 
 enum FILENAME_ATTR = "filename";
 /// Добавить путь к файлу как атребут корнегого элемента
-void addFilePathAsAttr (IR) (IR node, string filePath)
+void addFilePathAsAttr (R) (DOMEntity!R xml, R filePath)
 in (isValidPath(filePath))
 {
-	node.children()[0].attributes() ~= IR.Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1));
+	match!(
+		(DOMEntity!R node) => node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1)),
+		_ => void[].init
+	)(xml["/*"].front);
 }
 
 
@@ -175,7 +179,7 @@ int main(string[] args)
 	foreach (path; xmlFiles)
 	{
 		if ( !(isFile(path) && extension(path) == ".xml")) continue;
-		auto a = readText(path).parseDOM();
+		DOMEntity!string a = readText(path).parseDOM();
 		if (a == entityNone())
 			continue;
 		addFilePathAsAttr(a, path);
