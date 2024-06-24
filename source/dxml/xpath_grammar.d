@@ -29,7 +29,10 @@ ParseTree find (ParseTree node, string nodeName)
 
 mixin(grammar(`
 XPathMini:
-    LocationPath    <- (AbsoluteLocationPath / RelativeLocationPath) spacing eoi
+    XPath <- Expr spacing eoi
+    Expr <- OrExpr # the most general grammatical construct
+
+    LocationPath    <- (AbsoluteLocationPath / RelativeLocationPath)
     AbsoluteLocationPath    <-  AbbreviatedAbsoluteLocationPath
                             /   '/' RelativeLocationPath?
     AbbreviatedAbsoluteLocationPath <-  '//' RelativeLocationPath
@@ -38,7 +41,7 @@ XPathMini:
                             /   Step
 
     Step    <-  AbbreviatedStep
-            /   AxisSpecifier NodeTest # Predicate*
+            /   AxisSpecifier NodeTest Predicate*
     AbbreviatedStep <-  '..'
                     /   '.'
 
@@ -46,20 +49,26 @@ XPathMini:
                     /   AbbreviatedAxisSpecifier
 
     NodeTest    <-  PiTest
-                /   TypeTest
+                /   TypeTest '()'
                 /   NameTest
     PiTest  <-  'processing-instruction' '(' Literal ')'
-    TypeTest    <- ('processing-instruction' / 'comment' / 'text' / 'node') '()'
+    TypeTest    <- 'processing-instruction' / 'comment' / 'text' / 'node'
     NameTest    <-  '*'
                 /   Name
 
-    #Predicate   <-  '[' Expr ']'
-    #Expr  <-  orExpr
-    #PrimaryExpr <-  VariableReference
-    #            |   '(' Expr ')'
-    #            |   Literal
-    #            |   Number
-    #            |   FunctionCall
+    Predicate   <-  '[' Expr ']'
+    PrimaryExpr <-  '(' Expr ')'
+    #            /   VariableReference # //XXX: WHAT is this???
+                /   Literal
+                /   Number
+                /   FunctionCall
+    FunctionCall    <-  FunctionName '(' ( Expr ( ',' Expr )* )? ')'
+    FunctionName    <-  !TypeTest Name
+
+    OrExpr  <-  # AndExpr # Я пока пропущу
+            /   UnionExpr
+    UnionExpr   <-  ( PathExpr '|' UnionExpr ) / PathExpr
+    PathExpr    <-  LocationPath
 
     AbbreviatedAxisSpecifier    <- '@'?
     AxisName    <-  'ancestor-or-self'	
@@ -82,6 +91,8 @@ XPathMini:
 
     Literal <~  quote (!quote .)* quote
             /   doublequote (!doublequote .)* doublequote
+    Number  <~  '.' digits
+            /   digits ('.' digits?)?
 `));
 
 /*

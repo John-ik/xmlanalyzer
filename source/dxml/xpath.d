@@ -223,6 +223,19 @@ template process (R)
         {
         case grammarName:
             return xpath(node, path.children[0]);
+        case grammarName~".XPath":
+            return xpath(node, path.children[0]);
+        case grammarName~".Expr":
+            return xpath(node, path.children[0]);
+        case grammarName~".OrExpr":
+            //TODO:
+            return xpath(node, path.children[0]);
+        case grammarName~".UnionExpr":
+            if (path.children.length == 2)
+                return xpath(node, path.children[0]) ~ xpath(node, path.children[1]);
+            return xpath(node, path.children[0]);
+        case grammarName~".PathExpr":
+            return xpath(node, path.children[0]);
         case grammarName~".LocationPath":
             return xpath(node, path.children[0]);
         case grammarName~".AbsoluteLocationPath":
@@ -250,7 +263,7 @@ template process (R)
                 return assert(0); //TODO: IMPL
             if (resultAxis == Axes.attribute)
                 return toExprSet(stepAttribute(node, path));
-            return node.getByAxis(resultAxis).stepNode(path).toExprSet(); 
+            return node.getByAxis(resultAxis).stepNode(path).toExprSet();
         default:
             debug error(path);
             return set;
