@@ -6,7 +6,14 @@ ParseTree parseXPath (string xpath)
 {
     if (xpath == "") return ParseTree.init;
     ParseTree a = XPathMini(xpath);
-    if (a.successful == false) throw new XPathParserException(a.failMsg);
+    if (a.successful == false) 
+    {
+        import std.stdio, std.datetime;
+        File("parseTreeDump.pegged.txt", "w")
+            .writefln("Datetime: %s\nXPath: %s\n\n%s",
+            std.datetime.Clock.currTime(), xpath, a);
+        throw new XPathParserException(a.failMsg);
+    }
     return a;
 }
 enum grammarName = "XPathMini";
@@ -22,9 +29,7 @@ ParseTree find (ParseTree node, string nodeName)
 
 mixin(grammar(`
 XPathMini:
-    LocationPath    <- (AbsoluteLocationPath
-                    /   RelativeLocationPath
-                    ) spacing eoi
+    LocationPath    <- (AbsoluteLocationPath / RelativeLocationPath) spacing eoi
     AbsoluteLocationPath    <-  AbbreviatedAbsoluteLocationPath
                             /   '/' RelativeLocationPath?
     AbbreviatedAbsoluteLocationPath <-  '//' RelativeLocationPath
@@ -33,11 +38,11 @@ XPathMini:
                             /   Step
 
     Step    <-  AbbreviatedStep
-            |   AxisSpecifier NodeTest # Predicate*
+            /   AxisSpecifier NodeTest # Predicate*
     AbbreviatedStep <-  '..'
                     /   '.'
-    AxisSpecifier   <-  AbbreviatedAxisSpecifier
-                    |   AxisName '::'
+    AxisSpecifier   <-  AxisName '::'
+                    /   AbbreviatedAxisSpecifier
     NodeTest    <-  NameTest
                 |   TypeTest
     TypeTest    <- ('processing-instruction' / 'comment' / 'text' / 'node') '()'
