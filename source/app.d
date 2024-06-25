@@ -136,12 +136,13 @@ string writeXmlFromDOM (IR)(IR xmlDom)
 
 enum FILENAME_ATTR = "filename";
 /// Добавить путь к файлу как атребут корнегого элемента
-void addFilePathAsAttr (R) (DOMEntity!R xml, R filePath)
+void addFilePathAsAttr (R) (ref DOMEntity!R xml, R filePath)
 in (isValidPath(filePath))
 {
 	match!(
-		(DOMEntity!R node) => node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1)),
-		_ => void[].init
+		//BUG: xml не меняется
+		(ref DOMEntity!R node) => (node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1))).writeln(),
+		_ => assert(0) 
 	)(xml["/*"].front);
 }
 
@@ -182,14 +183,16 @@ int main(string[] args)
 		DOMEntity!string a = readText(path).parseDOM();
 		if (a == entityNone())
 			continue;
-		addFilePathAsAttr(a, path);
+		addFilePathAsAttr(a, path); // BUG: не записывает
 		xmlDocs ~= restruct(a);
 	}
 
 	// writeln(xmlDocs);
 
-	DOMEntity!string godXml;
-	godXml = xmlDocs[2];
+	DOMEntity!string godXml = parseDOM(`<god-xml></god-xml>`);
+	foreach (xml; xmlDocs)
+		godXml.children[0].children() ~= xml.children();
+	godXml = restruct(godXml);
 	//BUG: так как я убрал @property и добавил ref к .children() то возможны UB позиции текста.
 	// В идеале, если необходима позиция то нужно пересобирать дерево по новой.
 	// дерево закинул в writeXmlFromDOM и на вход в parseDOM и вау-ля. Дерево пересобрано

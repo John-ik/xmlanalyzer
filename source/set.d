@@ -9,7 +9,7 @@ struct Set (T)
     deprecated enum zeroUnit = ZeroUnit.init;
     T[] _payload;
 
-    T front () => _payload[0];
+    auto ref T front () => _payload[0];
     void popFront()
     {
         _payload = _payload[1..$];
