@@ -11,12 +11,15 @@ struct Set (T)
     deprecated enum zeroUnit = ZeroUnit.init;
     T[] _payload;
 
+    T[] data () => _payload;
+
     auto ref T front () => _payload[0];
     void popFront()
     {
         _payload = _payload[1..$];
     }
     bool empty () const => _payload.length == 0;
+    size_t length () const => _payload.length;
 
     this (T value)
     {
@@ -29,7 +32,6 @@ struct Set (T)
             _payload ~= value;
     }
 
-    size_t length () const => _payload.length;
 
     auto opOpAssign(string op: "~")(T value)
     {
