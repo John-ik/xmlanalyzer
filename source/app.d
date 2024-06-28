@@ -34,12 +34,9 @@ DOMEntity!string entityNone () ()
 	return entityNone!(string)();
 }
 
-string writeXmlFromEntitis (IR)(IR xmlEntities, AddNewRoot addNewRoot = AddNewRoot.no)
+string writeXmlFromEntitis (IR)(IR xmlEntities)
 {
 	auto writer = xmlWriter(appender!string());
-
-	if (addNewRoot)
-		writer.writeStartTag("newrooooot");
 
 	foreach (entity; xmlEntities)
 	{
@@ -75,9 +72,6 @@ string writeXmlFromEntitis (IR)(IR xmlEntities, AddNewRoot addNewRoot = AddNewRo
 
 		}
 	}
-
-	if (addNewRoot)
-		writer.writeEndTag("newrooooot");
 	
 	return writer.output().data();
 }
@@ -133,23 +127,27 @@ string writeXmlFromDOM (IR)(IR xmlDom)
 	return writer.output().data();
 }
 
+DOMEntity!string toDomEntity (ref process!string.Expr sumType) @safe
+{
+	return std.sumtype.tryMatch!(
+		(ref DOMEntity!string dom) => dom
+	)(sumType);
+}
 
 enum FILENAME_ATTR = "filename";
 /// Добавить путь к файлу как атребут корнегого элемента
-void addFilePathAsAttr (R) (ref DOMEntity!R xml, R filePath)
+void addFilePathAsAttr (R) (ref DOMEntity!R xml, R filePath) @safe
 in (isValidPath(filePath))
 {
-	match!(
-		//BUG: xml не меняется
-		(ref DOMEntity!R node) => (node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1))).writeln(),
-		_ => assert(0) 
-	)(xml["/*"].front);
+	std.sumtype.tryMatch!(
+		(ref DOMEntity!R node) => node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1))
+	)(xml["/*"].front); 
 }
 
 
 /// Чтоб обновить все позиции в дереве DOM  
 /// Не рекомендуется часто вызывать
-DOMEntity!S restruct (S) (DOMEntity!S node)
+DOMEntity!S restruct (S) (DOMEntity!S node) @safe
 {
 	// ну типо костыль.
 	// Дерево (пишется в)-> текст xml (парсится)-> дерево
@@ -162,37 +160,17 @@ int main(string[] args)
 {
 	infof("Args: %s", args);
 	
-	string[] xmlFiles;
-	foreach (string path; args[1..$])
-	{
-		if (isFile(path)) xmlFiles ~= path;
-		if (isDir(path))
-			foreach(file; dirEntries(path, SpanMode.depth))
-			{
-				xmlFiles ~= file;
-			}
-		
-	}
+	string[] xmlFiles = getAllXmlFrom(args[1..$]);
 
 	info(xmlFiles);
 
-	DOMEntity!string[] xmlDocs;
-	foreach (path; xmlFiles)
-	{
-		if ( !(isFile(path) && extension(path) == ".xml")) continue;
-		DOMEntity!string a = readText(path).parseDOM();
-		if (a == entityNone())
-			continue;
-		addFilePathAsAttr(a, path); // BUG: не записывает
-		xmlDocs ~= restruct(a);
-	}
+	DOMEntity!string[] xmlDocs = parseAll(xmlFiles);
 
 	// writeln(xmlDocs);
 
-	DOMEntity!string godXml = parseDOM(`<god-xml></god-xml>`);
-	foreach (xml; xmlDocs)
-		godXml.children[0].children() ~= xml.children();
-	godXml = restruct(godXml);
+	DOMEntity!string godXml = makeGodXml(xmlDocs);
+
+	
 	//BUG: так как я убрал @property и добавил ref к .children() то возможны UB позиции текста.
 	// В идеале, если необходима позиция то нужно пересобирать дерево по новой.
 	// дерево закинул в writeXmlFromDOM и на вход в parseDOM и вау-ля. Дерево пересобрано
@@ -242,4 +220,102 @@ int main(string[] args)
 
 	// writeln(output);
 	return 0;
+}
+
+
+version(unittest)
+{
+	static string[] xmlFiles;
+	static DOMEntity!string[] xmlDocs;
+	static DOMEntity!string godXml;
+}
+
+unittest
+{
+	import std.algorithm : canFind;
+
+	immutable dir = ["./project-name"];
+	immutable files = [
+		"./project-name/common/database.xml",
+		"./project-name/common/ParametersOverride.xml",
+		"./project-name/subfolder/service1/cfg/cfg.xml",
+		"./project-name/subfolder/service2/cfg/cfg.xml",
+		"./project-name/subfolder/service2/cfg/Service2Plugin1.xml",
+		"./project-name/subfolder/service2/cfg/Service2Plugin2.xml"
+	];
+
+
+	xmlFiles = getAllXmlFrom(dir);
+
+
+	assert(xmlFiles.length == 6);
+	foreach(file; files)
+		assert(canFind(xmlFiles, file));
+}
+
+@safe
+unittest
+{
+	xmlDocs = parseAll(xmlFiles);
+
+	assert(xmlDocs.length == 6);
+}
+
+@safe
+unittest
+{
+	godXml = makeGodXml(xmlDocs);
+
+	{
+		auto passwords = godXml["//@password"];
+		
+		assert(passwords.length == 3);
+
+		// All attr contain the same vaue
+		auto value = passwords.front.value;
+		foreach (pass; passwords)
+			assert(value == pass.value);
+	}
+}
+
+
+
+R[] getAllXmlFrom (R)(in R[] paths)
+{
+	import std.file;
+	R[] files;
+	foreach (R path; paths)
+	{
+		if (isFile(path) && extension(path) == ".xml") files ~= path;
+		if (isDir(path))
+			foreach(file; dirEntries(path, SpanMode.depth))
+			{
+				if (isFile(file) && extension(file) == ".xml")
+					files ~= file;
+			}
+	}
+	return files;
+}
+
+
+DOMEntity!R[] parseAll (R)(in R[] xmlFiles) @safe
+{
+	DOMEntity!R[] docs;
+	foreach (path; xmlFiles)
+	{
+		DOMEntity!R a = readText(path).parseDOM();
+		if (a == entityNone())
+			continue;
+		// addFilePathAsAttr(a, path); // BUG: не записывает
+		docs ~= restruct(a);
+	}
+	return docs;
+}
+
+DOMEntity!R makeGodXml (R)(DOMEntity!R[] xmlDocs) @safe
+{
+	DOMEntity!string god = parseDOM(`<god-xml></god-xml>`);
+	foreach (xml; xmlDocs)
+		god.children[0].children() ~= xml.children();
+	return restruct(god);
 }
