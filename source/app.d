@@ -139,6 +139,13 @@ enum FILENAME_ATTR = "filename";
 void addFilePathAsAttr (R) (ref DOMEntity!R xml, R filePath) @safe
 in (isValidPath(filePath))
 {
+	//TODO:
+	/*
+	* Можно сделать вызов delegate в функции обработки xpath. Чтоб менять занчения.
+	* Для геттера это будет ничего не делающая f.
+	*/
+
+
 	std.sumtype.tryMatch!(
 		(ref DOMEntity!R node) => node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1))
 	)(xml["/*"].front); 
@@ -267,16 +274,25 @@ unittest
 	godXml = makeGodXml(xmlDocs);
 
 	{
-		auto passwords = godXml["//@password"];
+		auto passwords = process!string.toAttrs(godXml["//@password"]);
 		
 		assert(passwords.length == 3);
 
 		// All attr contain the same vaue
+		// pragma(msg, typeof(passwords));
 		auto value = passwords.front.value;
 		foreach (pass; passwords)
 			assert(value == pass.value);
 	}
+
+	{
+		auto ports = process!string.toAttrs(godXml["//@port"]);
+
+		assert(ports.length == 12);
+
+	}
 }
+
 
 
 
