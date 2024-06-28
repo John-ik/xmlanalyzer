@@ -44,11 +44,27 @@ struct Set (T)
         return this;
     }
 
-
+    /++ This contain element?
+     + 
+     + Returns: bool
+     +/
     auto opBinaryRight(string op : "in", R : T)(const R lhs) const
     {
         import std.algorithm : canFind;
         return canFind(_payload, lhs);
+    }
+
+    /++
+    This contain elements?
+    
+    Return: bool
+    Date: Jun 28, 2024
+    +/
+    auto opBinaryRight(string op : "in", R : T)(const Set!R lhs) const
+    {
+        foreach (val; lhs)
+            if (val !in this) return false;
+        return true;
     }
 
     auto opBinary(string op : "~", R : T)(R rhs) => Set(_payload ~ rhs);
