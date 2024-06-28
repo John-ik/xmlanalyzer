@@ -787,7 +787,7 @@ public:
     import set;
     import std.conv : text;
 
-    DOMEntity get(ExactPath path)
+    ref DOMEntity get(ExactPath path)
     {
         if (path.length == 1) return this.get(path.front());
         if (path.empty) return this;
@@ -796,22 +796,22 @@ public:
         return this.get(child).get(path);
     }
 
-    DOMEntity get(ushort path)
+    ref DOMEntity get(ushort path)
     {
         if (this.type() != EntityType.elementStart) throw new TypeException(this);
         if (path >= this.children().length) throw new PathException(text(i"No element by $(path) index in $(this)"));
         return DOMEntity.children()[path];
     }
 
-    auto get (string xpath)
+    ref auto get (string xpath)
     {
         import dxml.xpath_grammar;
         ParseTree path = parseXPath(xpath);
         return process!string.xpath(this, path);
     }
 
-    DOMEntity opIndex(T)(T path) => this.get(path);
-    auto opIndex (string xpath) => this.get(xpath);
+    ref auto opIndex (string xpath) => this.get(xpath);
+    ref DOMEntity opIndex(T)(T path) => this.get(path);
 
     // <-- My edition
 
@@ -834,6 +834,8 @@ private:
     Attribute[] _attributes;
     SliceOfR _text;
     DOMEntity[] _children;
+
+    deprecated("Conflict with CTFE or @safe code") //XXX:
     DOMEntity* _parent; // my edition
 }
 
