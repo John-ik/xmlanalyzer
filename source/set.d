@@ -1,6 +1,7 @@
 module set;
-
 @safe:
+
+import std.range : ElementType;
 
 struct Set (T)
 {
@@ -22,9 +23,18 @@ struct Set (T)
     }
 
     this (R)(R range)
+    if(is(ElementType!R : T))
     {
         foreach (T value; range)
             _payload ~= value;
+    }
+
+    Set!T copy () const @trusted
+    {
+        Set!T result;
+        foreach (e; cast() this)
+            result ~= e;
+        return result;
     }
 
 
@@ -48,7 +58,7 @@ struct Set (T)
      + 
      + Returns: bool
      +/
-    auto opBinaryRight(string op : "in", R : T)(const R lhs) const
+    auto opBinaryRight(string op : "in", R : T)(in R lhs) const
     {
         import std.algorithm : canFind;
         return canFind(_payload, lhs);
@@ -60,9 +70,9 @@ struct Set (T)
     Return: bool
     Date: Jun 28, 2024
     +/
-    auto opBinaryRight(string op : "in", R : T)(const Set!R lhs) const
+    auto opBinaryRight(string op : "in", R : T)(in Set!R lhs) const
     {
-        foreach (val; lhs)
+        foreach (val; lhs.copy)
             if (val !in this) return false;
         return true;
     }
