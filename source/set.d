@@ -2,9 +2,6 @@ module set;
 
 @safe:
 
-import std.container.rbtree;
-import std.datetime.date;
-
 struct Set (T)
 {
     T[] _payload;
@@ -47,11 +44,11 @@ struct Set (T)
         return this;
     }
 
-    deprecated /// До лучших времен
+
     auto opBinaryRight(string op : "in", R : T)(const R lhs) const
     {
-        import std.algorithm : find;
-        return find(_payload, lhs);
+        import std.algorithm : canFind;
+        return canFind(_payload, lhs);
     }
 
     auto opBinary(string op : "~", R : T)(R rhs) => Set(_payload ~ rhs);
