@@ -54,8 +54,7 @@ enum Axes {
 
 
 
-public static import std.sumtype;
-alias match = std.sumtype.match;
+public import std.sumtype;
 /++
 Implementation for xpath finder.
 
@@ -85,6 +84,18 @@ template process (R)
         DOMEntity!R, /// node of DOM
     );
     
+
+    Set!T to (T) (Set!Expr set)
+    {
+        typeof(return) result;
+        foreach (e; set)
+            result ~= e.tryMatch!( (T t) => t );
+        return result;
+    }
+    alias toAttrs = to!(DOMEntity!R.Attribute);
+    alias toNodes = to!(DOMEntity!R);
+    alias toTexts = to!(R);
+
     private Set!Expr toExprSet (T)(Set!T set)
     {
         typeof(return) result;
