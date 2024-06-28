@@ -7,8 +7,6 @@ import std.datetime.date;
 
 struct Set (T)
 {
-    deprecated alias ZeroUnit = void[];
-    deprecated enum zeroUnit = ZeroUnit.init;
     T[] _payload;
 
     T[] data () => _payload;
