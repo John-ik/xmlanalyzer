@@ -18,6 +18,7 @@ import dxml.util;
 import dxml.writer;
 
 import dxml.xpath;
+import set;
 
 
 alias AddNewRoot = Flag!"AddNewRoot";
@@ -290,10 +291,27 @@ unittest
 
 		assert(ports.length == 12);
 
+		auto uniquePorts = getUniqValsFromAttrs!string(ports);
+		assert(uniquePorts.length == 4);
+
+		Set!string pp = Set!string([
+			"5432", // database
+			"24051", // Service2Plagin1
+			"7007", // service1/cfg
+			"12345" // Service2Plugin2
+		]);
+		assert(pp in uniquePorts);
 	}
 }
 
 
+Set!R getUniqValsFromAttrs (R, Attr)(Set!(Attr) attrs)
+{
+	typeof(return) result;
+	foreach (attr; attrs)
+		result ~= attr.value;
+	return result;
+}
 
 
 R[] getAllXmlFrom (R)(in R[] paths)
