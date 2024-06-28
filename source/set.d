@@ -1,5 +1,7 @@
 module set;
 
+@safe:
+
 import std.container.rbtree;
 import std.datetime.date;
 

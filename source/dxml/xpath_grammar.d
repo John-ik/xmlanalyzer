@@ -1,5 +1,7 @@
 module dxml.xpath_grammar;
 
+@safe:
+
 public import pegged.grammar;
 
 ParseTree parseXPath (string xpath)

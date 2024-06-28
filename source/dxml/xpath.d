@@ -1,5 +1,7 @@
 module dxml.xpath;
 
+@safe:
+
 debug import  std.logger;
 
 import std.algorithm : canFind;
