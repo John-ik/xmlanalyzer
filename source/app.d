@@ -1,89 +1,107 @@
-debug import std.logger;
+module xmlconfigurator;
 
-import std.stdio;
-import std.file;
-import std.path;
-import std.algorithm : map, joiner, filter, copy;
+import std.getopt : defaultGetoptPrinter, getopt;
 
-import std.range : walkLength, take, ElementType;
-import std.typecons : Flag, Yes, No;
-import std.meta : AliasSeq;
-import std.traits : isInstanceOf;
-
-import dxml.dom;
-
-import dxml.xpath;
-import set;
-
+import gui;
+import tree;
 import xmlutils;
+import dxml.dom : DOMEntity;
 
-
-
-
-int main(string[] args)
+Node walker(ref DOMEntity!string entity)
 {
-	infof("Args: %s", args);
+	import std.range : dropOne;
+	import dxml.dom;
 	
-	string[] xmlFiles = getAllXmlFrom(args[1..$]);
-
-	info(xmlFiles);
-
-	DOMEntity!string[] xmlDocs = parseAll(xmlFiles);
-
-	// writeln(xmlDocs);
-
-	DOMEntity!string godXml = makeGodXml(xmlDocs);
-
-	
-	//BUG: так как я убрал @property и добавил ref к .children() то возможны UB позиции текста.
-	// В идеале, если необходима позиция то нужно пересобирать дерево по новой.
-	// дерево закинул в writeXmlFromDOM и на вход в parseDOM и вау-ля. Дерево пересобрано
-	// godXml.children()[1].children() ~= xmlDocs[1].children()[0].children()[0];
-	// Пофикшено? restruct()
-
-	string output = writeXmlFromDOM(godXml);
-	writeln(godXml);
-	writeln(output);
-
-	// assert(godXml["//cfg/@filename"] == godXml["/././*/..//cfg/@filename"]);
-	string line;
-	write("Enter XPath: ");
-	while ((line = stdin.readln()) !is null) {
-		writefln("%(>- %s\n%)", godXml[line]);
-		write("Enter XPath: ");
+	auto node = Node();
+	{
+		final switch (entity.type())
+		{
+		case EntityType.comment:
+			node.caption = entity.text;
+			break;
+		case EntityType.cdata:
+			node.caption = entity.text;
+			break;
+		case EntityType.elementEmpty:
+			if (entity.attributes.length)
+			{
+				auto a = entity.attributes()[0];
+				node.caption = a.name ~ "=" ~ a.value;
+				foreach (attr; entity.attributes().dropOne)
+					node.caption ~= ", " ~ attr.name ~ "=" ~ attr.value;
+			}
+			break;
+		case EntityType.elementEnd:
+			node.caption = entity.text;
+			break;
+		case EntityType.elementStart:
+			if (entity.attributes.length)
+			{
+				auto a = entity.attributes()[0];
+				node.caption = a.name ~ "=" ~ a.value;
+				foreach (attr; entity.attributes().dropOne)
+					node.caption ~= ", " ~ attr.name ~ "=" ~ attr.value;
+			}
+			else
+				node.caption = entity.name;
+			foreach (child; entity.children())
+				node.children ~= walker(child);
+			break;
+		case EntityType.pi:
+			node.caption = entity.text;
+			break;
+		case EntityType.text:
+			import dxml.util;
+			node.caption = entity.text.stripIndent;
+			break;
+		}
 	}
 
-	// writeln(map!(a => a.text)(godXml["/cfg/things//text()"][]));
-
-	// God-xml
+	if (!node.caption.length)
+	{
+		import std.conv : text;
+		node.caption = text(entity.type);
+	}
 	
-
-	// // God-xml
-	// EntityRange!(MyEntityTemplate) godXml;
-	// foreach (string path; xmlFiles)
-	// {
-	// 	auto a = readText(path).parseXML!simpleXML().ifThrown(entityNone());
-	// 	if (a == entityNone())
-	// 		continue;
-		
-	// }
-	// auto xmlDocs = xmlFiles
-	// 				.map!(a => readText(a).parseXML!simpleXML().ifThrown(entityNone()))
-	// 				.filter!(a => a != entityNone())
-	// 				.joiner();
-	// pragma(msg, ElementType!(typeof(xmlDocs)));
-	// // auto dom = parseDOM(xmlDocs);
-
-	// foreach (xml; xmlDocs)
-	// {
-	// 	// Проверки
-	// }
-
-
-	// auto output = writeXmlFromEntitis(xmlDocs, AddNewRoot.yes);
-
-	// writeln(output);
-	return 0;
+	return node;
 }
 
+int main (string[] args)
+{
+	int scale = 1;
 
+	auto helpInformation = getopt(
+		args,
+		"scale", "Scale, 2 for 4K monitors and 1 for the rest", &scale,
+	);
+
+	if (helpInformation.helpWanted)
+	{
+		defaultGetoptPrinter("Usage:", helpInformation.options);
+		return 0;
+	}
+
+	if (scale != 1 && scale != 2)
+	{
+		import std;
+		stderr.writeln("Scale can be 1 or 2 only");
+		return 1;
+	}
+
+	string[] xmlFiles = getAllXmlFrom(args[1..$]);
+
+	auto xmlDocs = parseAll(xmlFiles);
+
+	auto godXml = makeGodXml(xmlDocs);
+
+	auto tree = walker(godXml.children[0]).children;
+
+	alias Tree = typeof(tree);
+
+	auto gui = new MyGui!Tree(1000, 800, "XML Configurator", scale);
+	gui.onBeforeLoopStart = () {};
+	gui.data = tree;
+	gui.run();
+
+	return 0;
+}
