@@ -1,5 +1,13 @@
 module bigtest;
 
+// dxml
+import dxml.dom;
+import dxml.xpath;
+
+// local
+import xmlutils;
+import set;
+
 version(unittest)
 {
 	static string[] xmlFiles;
