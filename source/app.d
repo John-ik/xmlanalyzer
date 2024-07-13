@@ -25,15 +25,10 @@ alias AddNewRoot = Flag!"AddNewRoot";
 
 alias MyEntityTemplate = AliasSeq!(simpleXML, string);
 
-DOMEntity!R entityNone (R) ()
-{
-	return DOMEntity!(R)();
-}
+DOMEntity!R entityNone (R) () => DOMEntity!(R)();
 
-DOMEntity!string entityNone () ()
-{
-	return entityNone!(string)();
-}
+DOMEntity!string entityNone () () => entityNone!(string)();
+
 
 string writeXmlFromEntitis (IR)(IR xmlEntities)
 {
@@ -140,6 +135,10 @@ enum FILENAME_ATTR = "filename";
 void addFilePathAsAttr (R) (ref DOMEntity!R xml, R filePath) @safe
 in (isValidPath(filePath))
 {
+	//  Вернул старое рабочее
+	xml.children()[0].attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1));
+	return; 
+
 	//TODO:
 	/*
 	* Можно сделать вызов delegate в функции обработки xpath. Чтоб менять занчения.
@@ -147,9 +146,7 @@ in (isValidPath(filePath))
 	*/
 
 
-	std.sumtype.tryMatch!(
-		(ref DOMEntity!R node) => node.attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1))
-	)(xml["/*"].front); 
+	
 }
 
 
@@ -279,7 +276,7 @@ unittest
 		
 		assert(passwords.length == 3);
 
-		// All attr contain the same vaue
+		// All attr contain the same value
 		// pragma(msg, typeof(passwords));
 		auto value = passwords.front.value;
 		foreach (pass; passwords)
@@ -300,7 +297,7 @@ unittest
 			"7007", // service1/cfg
 			"12345" // Service2Plugin2
 		]);
-		assert(pp in uniquePorts);
+		assert(pp in uniquePorts); // выше проверка что всего 4 элемента => это они и есть
 	}
 }
 
@@ -334,13 +331,14 @@ R[] getAllXmlFrom (R)(in R[] paths)
 
 DOMEntity!R[] parseAll (R)(in R[] xmlFiles) @safe
 {
+	import std.file;
 	DOMEntity!R[] docs;
 	foreach (path; xmlFiles)
 	{
 		DOMEntity!R a = readText(path).parseDOM();
 		if (a == entityNone())
 			continue;
-		// addFilePathAsAttr(a, path); // BUG: не записывает
+		addFilePathAsAttr(a, path); 
 		docs ~= restruct(a);
 	}
 	return docs;
