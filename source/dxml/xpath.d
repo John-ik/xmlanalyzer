@@ -176,6 +176,7 @@ template process (R)
     Set!(DOMEntity!R) stepNode (Set!(DOMEntity!R) nodes, ParseTree path)
     in(path.name == grammarName~".Step")
     {
+        info(path);
         Set!(DOMEntity!R) set;
         if (path.matches[0] == ".") 
             set = nodes;
