@@ -1,4 +1,4 @@
-module xmlconfigurator;
+module xmlanalyzer;
 
 import std.getopt : defaultGetoptPrinter, getopt;
 
