@@ -3,6 +3,7 @@ module xmlutils;
 // std
 import std.array : array, Appender, appender;
 import std.exception : enforce;
+import std.typecons : Flag, Yes, No; 
 
 // dxml
 import dxml.dom;
@@ -178,13 +179,29 @@ R[] getAllXmlFrom (R)(in R[] paths)
 }
 
 
-DOMEntity!R[] parseAll (R)(in R[] xmlFiles) @safe
+R preProcessComments (R) (R xmlText)
+{
+	import std.regex;
+	auto re = regex(`(?<=(<!--[^(--)]*))(--)(?=([^(--)]*-->))`, "g");
+	return replaceAll(xmlText, re, "-_-");
+}
+
+unittest
+{
+	immutable comment = `<!-- This is a comment -- Oops -->`;
+	immutable fixed   = `<!-- This is a comment -_- Oops -->`;
+	assert(preProcessComments(comment) == fixed);
+}
+
+DOMEntity!R[] parseAll (R)(in R[] xmlFiles, Flag!"preProcessComment" preProcessComment = No.preProcessComment) @safe
 {
 	import std.file;
 	DOMEntity!R[] docs;
 	foreach (path; xmlFiles)
 	{
-		DOMEntity!R a = readText(path).parseDOM();
+		auto xmlText = readText(path);
+		if (preProcessComment) xmlText = preProcessComments(xmlText);
+		DOMEntity!R a = parseDOM(xmlText);
 		if (a == entityNone())
 			continue;
 		addFilePathAsAttr(a, path); 
