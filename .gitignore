@@ -9,11 +9,16 @@ xmlanalyzer.dll
 xmlanalyzer.a
 xmlanalyzer.lib
 xmlanalyzer-test-*
+
 *.exe
 *.pdb
 *.o
 *.obj
 *.lst
+*.a
+
+xmlanalyzer_gui
+xmlanalyzer_cli
 
 .vscode/launch.json
 parseTreeDump.pegged.txt
