@@ -3,5 +3,27 @@ description "D app for control a lot of xml configs"
 authors "johnik"
 copyright "Copyright © 2024, johnik"
 license "proprietary"
-dependency "pegged" version="~>0.4.9"
-dependency "nanogui" path="../nanogui"
+
+subPackage "./lib-xmlanalyzer"
+subPackage "./gui" 
+subPackage "./cli"
+
+targetPath "."
+
+configuration "gui" {
+    targetType "executable"
+    versions "GuiApp"
+    dependency ":gui" version="*"
+}
+
+configuration "cli" {
+    targetType "executable"
+    versions "CliApp"
+    dependency ":cli" version="*"
+}
+
+configuration "lib" {
+    targetType "library"
+    versions "LibApp"
+    dependency ":lib-xmlanalyzer" version="*"
+}

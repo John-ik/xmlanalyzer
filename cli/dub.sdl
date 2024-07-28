@@ -1,0 +1,5 @@
+name "cli"
+targetType "executable"
+
+dependency "xmlanalyzer:lib-xmlanalyzer" version="*"
+subPackage "./../lib-xmlanalyzer"

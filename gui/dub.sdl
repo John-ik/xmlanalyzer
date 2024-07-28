@@ -1,0 +1,7 @@
+name "gui"
+targetType "executable"
+
+dependency "nanogui" path="./../../nanogui"
+
+dependency "xmlanalyzer:lib-xmlanalyzer" version="*"
+subPackage "./../lib-xmlanalyzer"

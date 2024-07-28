@@ -1,0 +1,4 @@
+name "lib-xmlanalyzer"
+targetType "library"
+
+dependency "pegged" version="~>0.4.9"
