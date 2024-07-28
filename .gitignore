@@ -17,3 +17,4 @@ xmlanalyzer-test-*
 
 .vscode/launch.json
 parseTreeDump.pegged.txt
+dub.selections.json
