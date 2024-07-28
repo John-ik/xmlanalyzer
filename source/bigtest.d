@@ -1,11 +1,8 @@
 module bigtest;
 
-// dxml
-import dxml.dom;
-import dxml.xpath;
-
 // local
 import xmlutils;
+import xmldom;
 import set;
 
 version(unittest)
