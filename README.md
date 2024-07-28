@@ -1,10 +1,14 @@
-# Зависимости
-Внимательно проверте путь для nanogui
+# Запуск 
 
-# Запуск (*deprecated*)
-`dub run -- ./project-name`
+## GUI
+`dub --root=./gui run -- ./project-name`
 
-## Юниттестирование (*deprecated*)
+## CLI
+`dub --root=./cli run -- ./project-name`
+
+
+
+## Юниттестирование
 
 `dub test`
 
