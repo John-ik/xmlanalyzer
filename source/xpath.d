@@ -385,7 +385,7 @@ class PathException : Exception
     mixin basicExceptionCtors;
 }
 
-class TypeException : Exception
+class TypePathException : Exception
 {
     import std.algorithm : joiner;
     import std.conv : text;
