@@ -3,22 +3,17 @@ module xmlutils;
 // std
 import std.array : array, Appender, appender;
 import std.exception : enforce;
-import std.typecons : Flag, Yes, No; 
-
-// dxml
-import dxml.dom;
-import dxml.parser;
-import dxml.util;
-import dxml.writer;
+import std.typecons : Flag, Yes, No;
 
 // local
 import set;
+import xmldom;
 
+// dxml
+import dxml.parser : EntityType;
+import dxml.writer;
+import dxml.util : stripIndent;
 
-/// Get empty DOMEntity
-DOMEntity!R entityNone (R) () => DOMEntity!(R)();
-/// Ditto
-DOMEntity!string entityNone () () => entityNone!(string)();
 
 /// EntityRange to string
 string writeXmlFromEntitis (IR)(IR xmlEntities)
@@ -121,11 +116,11 @@ import std.path : isValidPath;
 
 enum FILENAME_ATTR = "filename";
 /// Добавить путь к файлу как атребут корнегого элемента
-void addFilePathAsAttr (R) (ref DOMEntity!R xml, R filePath) @safe
+void addFilePathAsAttr (R) (ref XMLNode!R xml, R filePath) @safe
 in (isValidPath(filePath))
 {
 	//  Вернул старое рабочее
-	xml.children()[0].attributes() ~= (DOMEntity!R).Attribute(FILENAME_ATTR, filePath, TextPos(-1, -1));
+	xml.children()[0].attributes() ~= (XMLNode!R).Attribute(FILENAME_ATTR, filePath, TextPos2(-1, -1));
 	return; 
 
 	//TODO:
@@ -141,7 +136,7 @@ in (isValidPath(filePath))
 
 /// Чтоб обновить все позиции в дереве DOM  
 /// Не рекомендуется часто вызывать
-DOMEntity!S restruct (S) (DOMEntity!S node) @safe
+XMLNode!S restruct (S) (XMLNode!S node) @safe
 {
 	// ну типо костыль.
 	// Дерево (пишется в)-> текст xml (парсится)-> дерево
@@ -193,16 +188,16 @@ unittest
 	assert(preProcessComments(comment) == fixed);
 }
 
-DOMEntity!R[] parseAll (R)(in R[] xmlFiles, Flag!"preProcessComment" preProcessComment = No.preProcessComment) @safe
+XMLNode!R[] parseAll (R)(in R[] xmlFiles, Flag!"preProcessComment" preProcessComment = No.preProcessComment) @safe
 {
 	import std.file;
-	DOMEntity!R[] docs;
+	XMLNode!R[] docs;
 	foreach (path; xmlFiles)
 	{
 		auto xmlText = readText(path);
 		if (preProcessComment) xmlText = preProcessComments(xmlText);
-		DOMEntity!R a = parseDOM(xmlText);
-		if (a == entityNone())
+		XMLNode!R a = parseDOM(xmlText);
+		if (a.empty)
 			continue;
 		addFilePathAsAttr(a, path); 
 		docs ~= restruct(a);
@@ -210,9 +205,9 @@ DOMEntity!R[] parseAll (R)(in R[] xmlFiles, Flag!"preProcessComment" preProcessC
 	return docs;
 }
 
-DOMEntity!R makeGodXml (R)(DOMEntity!R[] xmlDocs) @safe
+XMLNode!R makeGodXml (R)(XMLNode!R[] xmlDocs) @safe
 {
-	DOMEntity!string god = parseDOM(`<god-xml></god-xml>`);
+	XMLNode!string god = parseDOM(`<god-xml></god-xml>`);
 	foreach (xml; xmlDocs)
 		god.children[0].children() ~= xml.children();
 	return restruct(god);

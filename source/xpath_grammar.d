@@ -1,4 +1,4 @@
-module dxml.xpath_grammar;
+module xpath_grammar;
 
 @safe:
 

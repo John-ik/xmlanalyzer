@@ -1,18 +1,16 @@
 module bigtest;
 
-// dxml
-import dxml.dom;
-import dxml.xpath;
-
 // local
-import xmlutils;
 import set;
+import xmlutils;
+import xmldom;
+import xpath;
 
 version(unittest)
 {
 	static string[] xmlFiles;
-	static DOMEntity!string[] xmlDocs;
-	static DOMEntity!string godXml;
+	static XMLNode!string[] xmlDocs;
+	static XMLNode!string godXml;
 }
 
 unittest
@@ -78,5 +76,14 @@ unittest
 			"12345" // Service2Plugin2
 		]);
 		assert(pp in uniquePorts); // выше проверка что всего 4 элемента => это они и есть
+	}
+
+	{
+		// mutable
+		foreach (ref n; process!string.toNodes(godXml["//cfg"]))
+			n.name = "config";
+		assert(process!string.toNodes(godXml["//config"]).front.name == "config");
+		foreach (ref n; process!string.toNodes(godXml["//config"]))
+			n.name = "cfg";
 	}
 }
