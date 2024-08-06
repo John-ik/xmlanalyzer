@@ -32,8 +32,8 @@ struct ExactPath
 }
 
 import set;
-import dxml.dom;
-import dxml.xpath_grammar;
+import xmldom;
+import xpath_grammar;
 
 
 enum Axes {
@@ -71,17 +71,17 @@ template process (R)
     template TypeFromAxes(Axes axis)
     {
         static if (axis == Axes.attribute)
-            alias TypeFromAxes = DOMEntity!R.Attribute;
+            alias TypeFromAxes = XMLNode!R.Attribute;
         else static if (axis == Axes.namespace)
             alias TypeFromAxes = R;
         else
-            alias TypeFromAxes = DOMEntity!R;
+            alias TypeFromAxes = XMLNode!R;
     }
     
     alias Expr = std.sumtype.SumType!(
         R, /// namespace or (text for [somenode="text content this node"])
-        DOMEntity!R.Attribute, /// attribute
-        DOMEntity!R, /// node of DOM
+        XMLNode!R.Attribute, /// attribute
+        XMLNode!R, /// node of DOM
     );
     
 
@@ -92,8 +92,8 @@ template process (R)
             result ~= e.tryMatch!( (T t) => t );
         return result;
     }
-    alias toAttrs = to!(DOMEntity!R.Attribute);
-    alias toNodes = to!(DOMEntity!R);
+    alias toAttrs = to!(XMLNode!R.Attribute);
+    alias toNodes = to!(XMLNode!R);
     alias toTexts = to!(R);
 
     private Set!Expr toExprSet (T)(Set!T set)
@@ -105,13 +105,13 @@ template process (R)
     }
 
     deprecated
-    private DOMEntity!(R)[] stack;
-    deprecated    private DOMEntity!R parent() {
+    private XMLNode!(R)[] stack;
+    deprecated    private XMLNode!R parent() {
         // scope(exit) stack = stack[0..$-1];
         return stack[$-1];
     }
     deprecated
-    private void push(DOMEntity!R value) { stack ~= value; }
+    private void push(XMLNode!R value) { stack ~= value; }
 
 
     Axes getAxis (ParseTree path)
@@ -148,12 +148,12 @@ template process (R)
 
     /// Ось атрибутов здесь  
     /// Также и проверка
-    Set!(DOMEntity!R.Attribute) stepAttribute (DOMEntity!R node, ParseTree path)
+    Set!(XMLNode!R.Attribute) stepAttribute (XMLNode!R node, ParseTree path)
     in(path.name == grammarName~".Step")
     {
         typeof(return) set;
         with (EntityType)
-            // http://jmdavisprog.com/docs/dxml/0.4.4/dxml_dom.html#.DOMEntity.attributes
+            // http://jmdavisprog.com/docs/dxml/0.4.4/dxml_dom.html#.XMLNode.attributes
             if (canFind([elementStart, elementEmpty], node.type()) == false)
                 return set;
 
@@ -162,7 +162,7 @@ template process (R)
         if (nodeTest.children[0].name == grammarName~".TypeTest")
             return set;
 
-        foreach(DOMEntity!R.Attribute attr; node.attributes())
+        foreach(XMLNode!R.Attribute attr; node.attributes())
         {
             if (nodeTest.matches[0] == "*" || attr.name == nodeTest.matches[0])
                 set ~= attr;
@@ -173,10 +173,10 @@ template process (R)
 
     /// Выполнение проверок nodeTest и Predicates  
     /// Дочерние элементы не берутся. Проверяются только nodes
-    Set!(DOMEntity!R) stepNode (Set!(DOMEntity!R) nodes, ParseTree path)
+    Set!(XMLNode!R) stepNode (Set!(XMLNode!R) nodes, ParseTree path)
     in(path.name == grammarName~".Step")
     {
-        Set!(DOMEntity!R) set;
+        Set!(XMLNode!R) set;
         if (path.matches[0] == ".") 
             set = nodes;
         else if (path.matches[0] == "..")
@@ -186,7 +186,7 @@ template process (R)
         else
         {
             ParseTree nodeTest = find(path, grammarName~".NodeTest");
-            foreach (DOMEntity!R node; nodes)
+            foreach (XMLNode!R node; nodes)
             {
                 final switch (nodeTest.children[0].name)
                 {
@@ -223,11 +223,11 @@ template process (R)
         return set;
     }
     ///Ditto
-    Set!(DOMEntity!R) stepNode (DOMEntity!R node, ParseTree path) => stepNode(Set!(DOMEntity!R)(node), path);
+    Set!(XMLNode!R) stepNode (XMLNode!R node, ParseTree path) => stepNode(Set!(XMLNode!R)(node), path);
 
 
 
-    Set!(Expr) xpath (DOMEntity!R node, ParseTree path)
+    Set!(Expr) xpath (XMLNode!R node, ParseTree path)
     {
         typeof(return) set;
         // debug { import std.stdio : writefln; try { writefln("\n\t%s\n%s", node.name(), path); } catch (Error) {} }
@@ -285,7 +285,7 @@ template process (R)
         return set;
     }
 
-    Set!(Expr) xpath (Set!(DOMEntity!R) nodes, ParseTree path)
+    Set!(Expr) xpath (Set!(XMLNode!R) nodes, ParseTree path)
     {
         typeof(return) set;
         foreach (node; nodes)
@@ -298,7 +298,7 @@ template process (R)
 
     // getter for all axis (node type)
     /// Для множества как параметра
-    Set!(DOMEntity!R) getByAxis(Set!(DOMEntity!R) set, Axes axis)
+    Set!(XMLNode!R) getByAxis(Set!(XMLNode!R) set, Axes axis)
     {
         typeof(return) result;
         foreach (node; set)
@@ -306,7 +306,7 @@ template process (R)
         return result;
     }
     /// Для одного узла
-    Set!(DOMEntity!R) getByAxis(DOMEntity!R node, Axes axis)
+    Set!(XMLNode!R) getByAxis(XMLNode!R node, Axes axis)
     {
         typeof(return) result;
         final switch (axis)
@@ -342,13 +342,13 @@ template process (R)
         case Axes.self: return typeof(return)(node);
         }
     }
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor)(DOMEntity!R node) => stack - node;
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.ancestor)(XMLNode!R node) => stack - node;
     // /// Весь стек и текущий элемент. Возможно он уже включен
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.ancestor_or_self)(DOMEntity!R node) => stack ~ node;
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.ancestor_or_self)(XMLNode!R node) => stack ~ node;
     // /// Просто дети
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.child)(DOMEntity!R node) => typeof(this)(node.children());
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.child)(XMLNode!R node) => typeof(this)(node.children());
     // /// Все потомки
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant)(DOMEntity!R node)
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.descendant)(XMLNode!R node)
     // {
     //     typeof(return) result;
     //     if (node.type() != EntityType.elementStart) return result;
@@ -357,7 +357,7 @@ template process (R)
     //     return result;
     // }
     // /// Все потомки и текущий элемент
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.descendant_or_self)(DOMEntity!R node)
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.descendant_or_self)(XMLNode!R node)
     // {
     //     typeof(return) result;
     //     result ~= node;
@@ -367,13 +367,13 @@ template process (R)
     //     return result;
     // }
     // /// Родитель
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.parent)(DOMEntity!R node)
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.parent)(XMLNode!R node)
     // out(res; node in getByAxis!(Axes.child)(res))
     // {
     //     return typeof(stack[$-1]);
     // }
     // /// Текущий элеметн
-    // Set!(DOMEntity!R) getByAxis(Axes axis : Axes.self)(DOMEntity!R node) => typeof(this)(node);
+    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.self)(XMLNode!R node) => typeof(this)(node);
 }
 
 
@@ -391,7 +391,7 @@ class TypePathException : Exception
     import std.conv : text;
     import std.format;
     import dxml.dom;
-    this(R)(DOMEntity!R entity, string file = __FILE__, size_t line = __LINE__) {
+    this(R)(XMLNode!R entity, string file = __FILE__, size_t line = __LINE__) {
         super(format("This must be started element. /%s/<%s>; %s", entity.path.joiner(`/`), entity.name, entity.type),
                 file, line);
     }

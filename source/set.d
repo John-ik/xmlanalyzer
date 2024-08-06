@@ -41,8 +41,9 @@ struct Set (T)
     auto opOpAssign(string op: "~")(T value)
     {
         import std.algorithm : canFind;
-        if (canFind(_payload, value))
-            return this;
+        foreach (a; _payload)
+            if (a == value)
+                return this;
         _payload ~= value;
         return this;
     }
