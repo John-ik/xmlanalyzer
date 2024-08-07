@@ -5,9 +5,9 @@ import std.getopt : defaultGetoptPrinter, getopt;
 import gui;
 import tree;
 import xmlutils;
-import dxml.dom : DOMEntity;
+import xmldom;
 
-Node walker(ref DOMEntity!string entity)
+Node walker(ref XMLNode!string entity)
 {
 	import std.range : dropOne;
 	import dxml.dom;

@@ -167,7 +167,7 @@ template process (R)
             if (nodeTest.matches[0] == "*" || attr.name == nodeTest.matches[0])
                 set ~= attr;
         }
-        // Какие нафиг предикаты для аттрибутов или их контекстов. ХЗ
+        // Какие предикаты для аттрибутов или их контекстов. ХЗ
         return set;
     }
 
