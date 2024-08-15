@@ -1,4 +1,4 @@
-name "cli"
+name "xmlanalyzer-cli"
 targetType "executable"
 
 dependency "xmlanalyzer" path=".."
