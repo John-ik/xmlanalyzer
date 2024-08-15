@@ -23,3 +23,4 @@ xmlanalyzer_cli
 .vscode/launch.json
 parseTreeDump.pegged.txt
 dub.selections.json
+cli/xmlanalyzer-cli
