@@ -1,5 +1,7 @@
 module xmldom;
 
+debug import  std.logger;
+
 // std
 import std.algorithm : map, canFind;
 import std.array : array;
@@ -11,10 +13,18 @@ import std.typecons : Tuple;
 // dxml
 import dxml.dom;
 import dxml.parser;
+import dxml.util;
+
+// pegged
+import pegged.grammar : ParseTree;
 
 // local
+import xpath_grammar;
 import xpath;
+import set;
 
+// public
+public import std.sumtype;
 public import dxml.parser : EntityType;
 
 
@@ -39,6 +49,12 @@ struct TextPos2
     {
         _pos.line = line;
         _pos.col = col;
+    }
+
+    string toString() const @safe pure
+    {
+        import std.format;
+        return format("TextPos(%d, %d)", line, col);
     }
 
     TextPos _pos;
@@ -102,11 +118,94 @@ class XMLNode (S)
         return this.children()[path];
     }
 
-    auto get (string xpath) @safe
+
+    // XPath
+    template TypeFromAxes(Axes axis)
+    {
+        static if (axis == Axes.attribute)
+            alias TypeFromAxes = XMLNode!R.Attribute;
+        else static if (axis == Axes.namespace)
+            alias TypeFromAxes = R;
+        else
+            alias TypeFromAxes = XMLNode!R;
+    }
+
+    
+    Result!S xpath (XMLNode!S node, ParseTree path)
+    {
+        typeof(return) set;
+        // debug { import std.stdio : writefln; try { writefln("\n\t%s\n%s", node.name(), path); } catch (Error) {} }
+        
+        switch (path.name)
+        {
+        case grammarName:
+            return xpath(node, path.children[0]);
+        case grammarName~".XPath":
+            return xpath(node, path.children[0]);
+        case grammarName~".Expr":
+            return xpath(node, path.children[0]);
+        case grammarName~".OrExpr":
+            //TODO:
+            return xpath(node, path.children[0]);
+        case grammarName~".UnionExpr":
+            if (path.children.length == 2)
+                // https://www.w3.org/TR/xpath-10/ Part 3.3
+                // Both operands must be node-set TODO: check type function
+                return Result!S(xpath(node, path.children[0]).toNodes() ~ xpath(node, path.children[1]).toNodes());
+            return xpath(node, path.children[0]);
+        case grammarName~".PathExpr":
+            return xpath(node, path.children[0]);
+        case grammarName~".LocationPath":
+            return xpath(node, path.children[0]);
+        case grammarName~".AbsoluteLocationPath":
+            return xpath(node, path.children[0]);
+        case grammarName~".AbbreviatedAbsoluteLocationPath":
+            return xpath(getByAxis(node, Axes.descendant_or_self), path.children[0]);
+        case grammarName~".RelativeLocationPath":
+            if (path.children.length > 1)
+            {
+                ParseTree steper = path.find(grammarName~".Step");
+                // info(getAxis(steper));
+                auto byAxis = getByAxis(node, getAxis(steper));
+                // infof("%(>- %s\v\n%)", byAxis);
+                auto byStep = stepNode(byAxis, steper);
+                // infof("%(>- %s\v\n%)", byStep);
+                if (path.matches[1] == "//")
+                    byStep = byStep.getByAxis(Axes.descendant_or_self);
+                // infof("%(>- %s\v\n%)", byStep);
+                return xpath(byStep, path.children[$-1]);
+            }
+            return xpath(node, path.children[$-1]); // goto last step
+        case grammarName~".Step":
+            Axes resultAxis = getAxis(path);
+            if (resultAxis == Axes.namespace)
+                return assert(0); //TODO: IMPL
+            if (resultAxis == Axes.attribute)
+                return Result!S(stepAttribute(node, path));
+            return Result!S(node.getByAxis(resultAxis).stepNode(path));
+        default:
+            debug error(path);
+            return set;
+        }
+        
+        return set;
+    }
+
+    Result!S xpath (Set!(XMLNode) nodes, ParseTree path)
+    {
+        Result!S set;
+        foreach (node; nodes)
+            set ~= xpath(node, path);
+        return set;
+    }
+    // <- XPath
+
+
+    auto get (string xpath)
     {
         import xpath_grammar;
         ParseTree path = parseXPath(xpath);
-        return process!string.xpath(this, path);
+        return this.xpath(this, path);
     }
 
     auto opIndex (T) (T path) => this.get(path);
@@ -121,6 +220,32 @@ class XMLNode (S)
 
     /// Compare XMLNode equals compare their position
     int opCmp (const XMLNode other) const @safe => this.pos().opCmp(other.pos());
+
+    override string toString() @safe
+    {
+        import std.conv, std.format;
+        string r;
+        final switch (type()) 
+        {
+        case EntityType.cdata, EntityType.comment, EntityType.text:
+            r = text().stripIndent();
+            break;
+        case EntityType.pi:
+            r = format("%s, %s", name(), text());
+            break;
+        case EntityType.elementEnd:
+            r = name();
+            break;
+        case EntityType.elementEmpty:
+            r = format("%s, %s", name(), attributes());
+            break;
+        case EntityType.elementStart:
+            r = format("%s, %s, [%(%s, %)]", name(), attributes(), children());
+            break;
+        }
+
+        return format!"XMLNode!%s(%s, %s, %s, %s)"(S.stringof, type(), pos(), path(), r);
+    }
 
 
     EntityType type() const @safe nothrow @nogc => _type;

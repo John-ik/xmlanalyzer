@@ -36,7 +36,6 @@ unittest
 		assert(canFind(xmlFiles, file));
 }
 
-@safe
 unittest
 {
 	xmlDocs = parseAll(xmlFiles);
@@ -44,13 +43,12 @@ unittest
 	assert(xmlDocs.length == 6);
 }
 
-@safe
 unittest
 {
 	godXml = makeGodXml(xmlDocs);
 
 	{
-		auto passwords = process!string.toAttrs(godXml["//@password"]);
+		auto passwords = godXml["//@password"].toAttrs();
 		
 		assert(passwords.length == 3);
 
@@ -62,7 +60,7 @@ unittest
 	}
 
 	{
-		auto ports = process!string.toAttrs(godXml["//@port"]);
+		auto ports = godXml["//@port"].toAttrs();
 
 		assert(ports.length == 12);
 
@@ -80,10 +78,10 @@ unittest
 
 	{
 		// mutable
-		foreach (ref n; process!string.toNodes(godXml["//cfg"]))
+		foreach (ref n; godXml["//cfg"].toNodes())
 			n.name = "config";
-		assert(process!string.toNodes(godXml["//config"]).front.name == "config");
-		foreach (ref n; process!string.toNodes(godXml["//config"]))
+		assert(godXml["//config"].toNodes().front.name == "config");
+		foreach (ref n; godXml["//config"].toNodes())
 			n.name = "cfg";
 	}
 }

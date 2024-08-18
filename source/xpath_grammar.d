@@ -4,6 +4,8 @@ module xpath_grammar;
 
 public import pegged.grammar;
 
+immutable XPathGrammarErrorDumpFile = "parseTreeDump.pegged.txt";
+
 ParseTree parseXPath (string xpath)
 {
     if (xpath == "") return ParseTree.init;
@@ -11,9 +13,10 @@ ParseTree parseXPath (string xpath)
     if (a.successful == false) 
     {
         import std.stdio, std.datetime;
-        File("parseTreeDump.pegged.txt", "w")
+        File(XPathGrammarErrorDumpFile, "w")
             .writefln("Datetime: %s\nXPath: %s\n\n%s",
             std.datetime.Clock.currTime(), xpath, a);
+        writefln!"ParseTree dump has written to %s"(XPathGrammarErrorDumpFile);
         throw new XPathParserException(a.failMsg);
     }
     return a;
@@ -70,7 +73,8 @@ XPathMini:
     OrExpr  <-  # AndExpr # Я пока пропущу
             /   UnionExpr
     UnionExpr   <-  ( PathExpr '|' UnionExpr ) / PathExpr
-    PathExpr    <-  LocationPath
+    PathExpr    <-  FilterExpr / LocationPath
+    FilterExpr  <-  (FilterExpr Predicate) / PrimaryExpr 
 
     AbbreviatedAxisSpecifier    <- '@'?
     AxisName    <-  'ancestor-or-self'	

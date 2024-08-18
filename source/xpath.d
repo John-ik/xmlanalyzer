@@ -1,6 +1,6 @@
 module xpath;
 
-@safe:
+
 
 debug import  std.logger;
 
@@ -8,6 +8,7 @@ import std.algorithm : canFind;
 import std.algorithm : map;
 import std.meta : staticIndexOf;
 
+@safe
 struct ExactPath
 {
     bool empty () const => _path.length == 0;
@@ -52,329 +53,322 @@ enum Axes {
     self
 }
 
-
-
-public import std.sumtype;
-/++
-Implementation for xpath finder.
-
-Implemented
-- NodeTest for 
-    + type: pi, comment, node, text
-    + name, * - match any name of tag
-- absolute path child by child
-
-Date: Jun 19, 2024
-+/
-template process (R)
+Axes getAxis (ParseTree path)
+in(path.name == grammarName~".Step")
 {
-    template TypeFromAxes(Axes axis)
-    {
-        static if (axis == Axes.attribute)
-            alias TypeFromAxes = XMLNode!R.Attribute;
-        else static if (axis == Axes.namespace)
-            alias TypeFromAxes = R;
-        else
-            alias TypeFromAxes = XMLNode!R;
-    }
+    if (path.matches[0] == ".")
+        return Axes.self;
+    if (path.matches[0] == "..")
+        return Axes.parent;
     
-    alias Expr = std.sumtype.SumType!(
-        R, /// namespace or (text for [somenode="text content this node"])
-        XMLNode!R.Attribute, /// attribute
-        XMLNode!R, /// node of DOM
-    );
+    ParseTree axisSpecifier = path.find(grammarName~".AxisSpecifier");
+    if (axisSpecifier == axisSpecifier.init)
+        return Axes.child;
+    if (axisSpecifier.matches[0] == "@")
+        return Axes.attribute;
     
-
-    Set!T to (T) (Set!Expr set)
+    with(Axes) final switch ( axisSpecifier.matches[0] )
     {
-        typeof(return) result;
-        foreach (e; set)
-            result ~= e.tryMatch!( (T t) => t );
-        return result;
+    case "ancestor-or-self": return ancestor_or_self;
+    case "ancestor": return ancestor;
+    case "attribute": return attribute;
+    case "child": return child;
+    case "descendant-or-self": return descendant_or_self;
+    case "descendant": return descendant;
+    case "following-sibling": return following_sibling;
+    case "following": return following;
+    case "namespace": return namespace;
+    case "parent": return parent;
+    case "preceding-sibling": return preceding_sibling;
+    case "preceding": return preceding;
+    case "self": return self;
     }
-    alias toAttrs = to!(XMLNode!R.Attribute);
-    alias toNodes = to!(XMLNode!R);
-    alias toTexts = to!(R);
-
-    private Set!Expr toExprSet (T)(Set!T set)
-    {
-        typeof(return) result;
-        foreach (e; set)
-            result ~= Expr(e);
-        return result;
-    }
-
-    deprecated
-    private XMLNode!(R)[] stack;
-    deprecated    private XMLNode!R parent() {
-        // scope(exit) stack = stack[0..$-1];
-        return stack[$-1];
-    }
-    deprecated
-    private void push(XMLNode!R value) { stack ~= value; }
-
-
-    Axes getAxis (ParseTree path)
-    in(path.name == grammarName~".Step")
-    {
-        if (path.matches[0] == ".")
-            return Axes.self;
-        if (path.matches[0] == "..")
-            return Axes.parent;
-        
-        ParseTree axisSpecifier = path.find(grammarName~".AxisSpecifier");
-        if (axisSpecifier == axisSpecifier.init)
-            return Axes.child;
-        if (axisSpecifier.matches[0] == "@")
-            return Axes.attribute;
-        
-        with(Axes) final switch ( axisSpecifier.matches[0] )
-        {
-        case "ancestor-or-self": return ancestor_or_self;
-        case "ancestor": return ancestor;
-        case "attribute": return attribute;
-        case "child": return child;
-        case "descendant-or-self": return descendant_or_self;
-        case "descendant": return descendant;
-        case "following-sibling": return following_sibling;
-        case "following": return following;
-        case "namespace": return namespace;
-        case "parent": return parent;
-        case "preceding-sibling": return preceding_sibling;
-        case "preceding": return preceding;
-        case "self": return self;
-        }
-    }
-
-    /// Ось атрибутов здесь  
-    /// Также и проверка
-    Set!(XMLNode!R.Attribute) stepAttribute (XMLNode!R node, ParseTree path)
-    in(path.name == grammarName~".Step")
-    {
-        typeof(return) set;
-        with (EntityType)
-            // http://jmdavisprog.com/docs/dxml/0.4.4/dxml_dom.html#.XMLNode.attributes
-            if (canFind([elementStart, elementEmpty], node.type()) == false)
-                return set;
-
-        ParseTree nodeTest = find(path, grammarName~".NodeTest");
-        
-        if (nodeTest.children[0].name == grammarName~".TypeTest")
-            return set;
-
-        foreach(XMLNode!R.Attribute attr; node.attributes())
-        {
-            if (nodeTest.matches[0] == "*" || attr.name == nodeTest.matches[0])
-                set ~= attr;
-        }
-        // Какие предикаты для аттрибутов или их контекстов. ХЗ
-        return set;
-    }
-
-    /// Выполнение проверок nodeTest и Predicates  
-    /// Дочерние элементы не берутся. Проверяются только nodes
-    Set!(XMLNode!R) stepNode (Set!(XMLNode!R) nodes, ParseTree path)
-    in(path.name == grammarName~".Step")
-    {
-        Set!(XMLNode!R) set;
-        if (path.matches[0] == ".") 
-            set = nodes;
-        else if (path.matches[0] == "..")
-        {
-            set = nodes; // Дочерние элементы не беруться. Родитель уже взят осью в xpath case
-        }
-        else
-        {
-            ParseTree nodeTest = find(path, grammarName~".NodeTest");
-            foreach (XMLNode!R node; nodes)
-            {
-                final switch (nodeTest.children[0].name)
-                {
-                case grammarName~".NameTest":
-                    with (EntityType)
-                        if (node.type() !in [elementStart:0, elementEmpty:0])
-                            continue;
-                    if (nodeTest.matches[0] == "*" || node.name() == nodeTest.matches[0])
-                        set ~= node;
-                    break;
-                case grammarName~".TypeTest":
-                    with (EntityType) final switch (nodeTest.children[0].matches[0])
-                    {
-                    case "processing-instruction":
-                        if (node.type() == pi) set ~= node; break;
-                    case "comment":
-                        if (node.type() == comment) set ~= node; break;
-                    case "text":
-                        if (node.type() == text) set ~= node; break;
-                    case "node":
-                        set ~= node; break;
-                    }
-
-                    break;
-                case grammarName~".PiTest":
-                    ParseTree piTest = find(nodeTest, grammarName~".PiTest");
-                    if (node.type() == EntityType.pi && node.name() == piTest.children[0].matches[0][1..$-1])
-                        set ~= node;
-                    break;
-                }
-            }
-        }
-        // для предикатов
-        return set;
-    }
-    ///Ditto
-    Set!(XMLNode!R) stepNode (XMLNode!R node, ParseTree path) => stepNode(Set!(XMLNode!R)(node), path);
-
-
-
-    Set!(Expr) xpath (XMLNode!R node, ParseTree path)
-    {
-        typeof(return) set;
-        // debug { import std.stdio : writefln; try { writefln("\n\t%s\n%s", node.name(), path); } catch (Error) {} }
-        
-        switch (path.name)
-        {
-        case grammarName:
-            return xpath(node, path.children[0]);
-        case grammarName~".XPath":
-            return xpath(node, path.children[0]);
-        case grammarName~".Expr":
-            return xpath(node, path.children[0]);
-        case grammarName~".OrExpr":
-            //TODO:
-            return xpath(node, path.children[0]);
-        case grammarName~".UnionExpr":
-            if (path.children.length == 2)
-                return xpath(node, path.children[0]) ~ xpath(node, path.children[1]);
-            return xpath(node, path.children[0]);
-        case grammarName~".PathExpr":
-            return xpath(node, path.children[0]);
-        case grammarName~".LocationPath":
-            return xpath(node, path.children[0]);
-        case grammarName~".AbsoluteLocationPath":
-            return xpath(node, path.children[0]);
-        case grammarName~".AbbreviatedAbsoluteLocationPath":
-            return xpath(getByAxis(node, Axes.descendant_or_self), path.children[0]);
-        case grammarName~".RelativeLocationPath":
-            if (path.children.length > 1)
-            {
-                ParseTree steper = path.find(grammarName~".Step");
-                // info(getAxis(steper));
-                auto byAxis = getByAxis(node, getAxis(steper));
-                // infof("%(>- %s\v\n%)", byAxis);
-                auto byStep = stepNode(byAxis, steper);
-                // infof("%(>- %s\v\n%)", byStep);
-                if (path.matches[1] == "//")
-                    byStep = byStep.getByAxis(Axes.descendant_or_self);
-                // infof("%(>- %s\v\n%)", byStep);
-                return xpath(byStep, path.children[$-1]);
-            }
-            return xpath(node, path.children[$-1]); // goto last step
-        case grammarName~".Step":
-            Axes resultAxis = getAxis(path);
-            if (resultAxis == Axes.namespace)
-                return assert(0); //TODO: IMPL
-            if (resultAxis == Axes.attribute)
-                return toExprSet(stepAttribute(node, path));
-            return node.getByAxis(resultAxis).stepNode(path).toExprSet();
-        default:
-            debug error(path);
-            return set;
-        }
-        
-        return set;
-    }
-
-    Set!(Expr) xpath (Set!(XMLNode!R) nodes, ParseTree path)
-    {
-        typeof(return) set;
-        foreach (node; nodes)
-        {
-            set ~= xpath(node, path);
-        }
-        return set;
-    }
-
-
-    // getter for all axis (node type)
-    /// Для множества как параметра
-    Set!(XMLNode!R) getByAxis(Set!(XMLNode!R) set, Axes axis)
-    {
-        typeof(return) result;
-        foreach (node; set)
-            result ~= getByAxis(node, axis);
-        return result;
-    }
-    /// Для одного узла
-    Set!(XMLNode!R) getByAxis(XMLNode!R node, Axes axis)
-    {
-        typeof(return) result;
-        final switch (axis)
-        {
-        case Axes.ancestor_or_self: 
-            result ~= node;
-            goto case;
-        case Axes.ancestor:
-            if (node.type() == EntityType.elementStart && node.name() == "") 
-                return result; // Если элемент корневой
-            return result ~ getByAxis(node, Axes.parent).getByAxis(Axes.ancestor_or_self);
-        case Axes.attribute: return assert(0);
-        case Axes.child:
-            if (node.type() != EntityType.elementStart) return result;
-            return typeof(return)(node.children());
-        case Axes.descendant_or_self:
-            result ~= node;
-            goto case;
-        case Axes.descendant:
-            if (node.type() != EntityType.elementStart) return result;
-            return result ~ getByAxis(node, Axes.child).getByAxis(Axes.descendant_or_self);
-        case Axes.following:
-        case Axes.following_sibling:
-            return assert(0); //TODO: IMPL
-        case Axes.namespace:
-            return assert(0);
-        case Axes.parent: 
-            assert(canFind(node.parent().children(), node));
-            return typeof(return)(node.parent());
-        case Axes.preceding:
-        case Axes.preceding_sibling:
-            return assert(0); //TODO: IMPL
-        case Axes.self: return typeof(return)(node);
-        }
-    }
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.ancestor)(XMLNode!R node) => stack - node;
-    // /// Весь стек и текущий элемент. Возможно он уже включен
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.ancestor_or_self)(XMLNode!R node) => stack ~ node;
-    // /// Просто дети
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.child)(XMLNode!R node) => typeof(this)(node.children());
-    // /// Все потомки
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.descendant)(XMLNode!R node)
-    // {
-    //     typeof(return) result;
-    //     if (node.type() != EntityType.elementStart) return result;
-    //     foreach (child; node.children())
-    //         result ~= getByAxis!(Axes.descendant_or_self)(child);
-    //     return result;
-    // }
-    // /// Все потомки и текущий элемент
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.descendant_or_self)(XMLNode!R node)
-    // {
-    //     typeof(return) result;
-    //     result ~= node;
-    //     if (node.type() != EntityType.elementStart) return result;
-    //     foreach (child; node.children())
-    //         result ~= getByAxis!(Axes.descendant_or_self)(child);
-    //     return result;
-    // }
-    // /// Родитель
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.parent)(XMLNode!R node)
-    // out(res; node in getByAxis!(Axes.child)(res))
-    // {
-    //     return typeof(stack[$-1]);
-    // }
-    // /// Текущий элеметн
-    // Set!(XMLNode!R) getByAxis(Axes axis : Axes.self)(XMLNode!R node) => typeof(this)(node);
 }
+
+
+// getter for all axis (node type)
+/// Для множества как параметра
+Set!(XMLNode!R) getByAxis (R) (Set!(XMLNode!R) set, Axes axis)
+{
+    typeof(return) result;
+    foreach (node; set)
+        result ~= getByAxis(node, axis);
+    return result;
+}
+/// Для одного узла
+Set!(XMLNode!R) getByAxis (R) (XMLNode!R node, Axes axis)
+{
+    typeof(return) result;
+    final switch (axis)
+    {
+    case Axes.ancestor_or_self: 
+        result ~= node;
+        goto case;
+    case Axes.ancestor:
+        if (node.type() == EntityType.elementStart && node.name() == "") 
+            return result; // Если элемент корневой
+        return result ~ getByAxis(node, Axes.parent).getByAxis(Axes.ancestor_or_self);
+    case Axes.attribute: return assert(0);
+    case Axes.child:
+        if (node.type() != EntityType.elementStart) return result;
+        return typeof(return)(node.children());
+    case Axes.descendant_or_self:
+        result ~= node;
+        goto case;
+    case Axes.descendant:
+        if (node.type() != EntityType.elementStart) return result;
+        return result ~ getByAxis(node, Axes.child).getByAxis(Axes.descendant_or_self);
+    case Axes.following:
+    case Axes.following_sibling:
+        return assert(0); //TODO: IMPL
+    case Axes.namespace:
+        return assert(0);
+    case Axes.parent: 
+        assert(canFind(node.parent().children(), node));
+        return typeof(return)(node.parent());
+    case Axes.preceding:
+    case Axes.preceding_sibling:
+        return assert(0); //TODO: IMPL
+    case Axes.self: return typeof(return)(node);
+    }
+}
+
+
+/// Выполнение проверок nodeTest и Predicates  
+/// Дочерние элементы не берутся. Проверяются только nodes
+Set!(XMLNode!S) stepNode (S) (Set!(XMLNode!S) nodes, ParseTree path) @safe
+in(path.name == grammarName~".Step")
+{
+    Set!(XMLNode!S) set;
+    if (path.matches[0] == ".") 
+        set = nodes;
+    else if (path.matches[0] == "..")
+    {
+        set = nodes; // Дочерние элементы не беруться. Родитель уже взят осью в xpath case
+    }
+    else
+    {
+        ParseTree nodeTest = find(path, grammarName~".NodeTest");
+        foreach (XMLNode!S node; nodes)
+        {
+            final switch (nodeTest.children[0].name)
+            {
+            case grammarName~".NameTest":
+                with (EntityType)
+                    if (node.type() !in [elementStart:0, elementEmpty:0])
+                        continue;
+                if (nodeTest.matches[0] == "*" || node.name() == nodeTest.matches[0])
+                    set ~= node;
+                break;
+            case grammarName~".TypeTest":
+                with (EntityType) final switch (nodeTest.children[0].matches[0])
+                {
+                case "processing-instruction":
+                    if (node.type() == pi) set ~= node; break;
+                case "comment":
+                    if (node.type() == comment) set ~= node; break;
+                case "text":
+                    if (node.type() == text) set ~= node; break;
+                case "node":
+                    set ~= node; break;
+                }
+
+                break;
+            case grammarName~".PiTest":
+                ParseTree piTest = find(nodeTest, grammarName~".PiTest");
+                if (node.type() == EntityType.pi && node.name() == piTest.children[0].matches[0][1..$-1])
+                    set ~= node;
+                break;
+            }
+        }
+    }
+    // для предикатов
+    return set;
+}
+///Ditto
+Set!(XMLNode!S) stepNode (S) (XMLNode!S node, ParseTree path) => stepNode(Set!(XMLNode)(node), path);
+
+/// Ось атрибутов здесь  
+/// Также и проверка
+Set!(XMLNode!S.Attribute) stepAttribute (S)(XMLNode!S node, ParseTree path) @safe
+in(path.name == grammarName~".Step")
+{
+    typeof(return) set;
+    with (EntityType)
+        // http://jmdavisprog.com/docs/dxml/0.4.4/dxml_dom.html#.DOMEntity.attributes
+        if (canFind([elementStart, elementEmpty], node.type()) == false)
+            return set;
+
+    ParseTree nodeTest = find(path, grammarName~".NodeTest");
+    
+    if (nodeTest.children[0].name == grammarName~".TypeTest")
+        return set;
+
+    foreach(XMLNode!S.Attribute attr; node.attributes())
+    {
+        if (nodeTest.matches[0] == "*" || attr.name == nodeTest.matches[0])
+            set ~= attr;
+    }
+    // Какие предикаты для аттрибутов или их контекстов. ХЗ
+    return set;
+}
+
+
+Set!(XMLNode!S) procPredicate (S) (Set!(XMLNode!S) nodes, ParseTree predicate) @safe
+in(path.name == grammarName~".Predicate")
+{
+
+}
+
+
+immutable Composition = "Composition";
+/++
+Check if ParseTree is composition element (someone element in tree has more then 1 children)
+Params:
+    
+Return: 
+Date: Aug 18, 2024
++/
+string checkComposotionElem(ParseTree p) @safe pure @nogc nothrow
+{
+    if (p.children.length == 0) return p.name;
+    //TODO: if called func
+    if (p.children.length > 1) return Composition;
+    return checkComposotionElem(p[0]);
+}
+
+
+ExprTypes getExprType (ParseTree expr) @safe
+{
+    final switch (expr.name)
+    {
+    case grammarName~".Expr": return getExprType(expr[0]);
+    }
+    assert(0);
+}
+
+/// All types of Expr in XPath
+enum ExprTypes {
+    undefined,
+    nodeset,
+    attrset,
+    strset,
+    boolean,
+    number,
+    str
+}
+
+
+
+struct Result (S)
+{
+    import std.sumtype;
+    alias Expr = SumType!(
+        EmptyType, /// Empty type
+        Set!(XMLNode!S), /// node-set
+        Set!(XMLNode!S.Attribute), /// set of attributes
+        Set!S,  /// set of texts or namespaces
+        bool,   /// boolean as result of XPathExpresion
+        double, /// number
+        S       /// string
+    );
+    Expr result;
+    alias result this;
+
+    /// Construct from any supported type
+    this (T) (T value)
+    {
+        result = Expr(value);
+    }
+
+    /++ 
+    Run-time. Get `ExprTypes` of type
+    
+    | Type              | Return |
+    |:------------------|----------:|
+    | `Set!(XMLNode!S)` | nodeset  |
+    | `Set!(XMLNode!S.Attribute)` | attrset |
+    | `Set!S` | strset |
+    | `bool` | boolenan |
+    | `double` | number |
+    | `S` | str |
+    | `EmptyType` | undefined |
+    ++/
+    ExprTypes getType ()
+    {
+        with (ExprTypes)
+        return result.match!(
+            (EmptyType _) => undefined,
+            (Set!(XMLNode!S) _) => nodeset,
+            (Set!(XMLNode!S.Attribute) _) => attrset,
+            (Set!S _) => strset,
+            (bool _) => boolean,
+            (double _) => number,
+            (S _) => str
+        );
+    }
+
+    /// Casting to needed type
+    /// Throws: `MatchException` on wrong type
+    T to (T) () @safe
+    {
+        try 
+            return result.tryMatch!((T t) => t);
+        catch (MatchException e)
+        {
+            errorf("Result is %s tried cast to %s", getType(), T.stringof);
+            throw e;
+        }
+    }
+    alias toNodes  = to!(Set!(XMLNode!S));
+    alias toAttrs  = to!(Set!(XMLNode!S.Attribute));
+    alias toTexts  = to!(Set!S);
+    alias toBool   = to!(bool);
+    alias toNumber = to!(double);
+    alias toStr    = to!(S);
+
+    /++
+    Concat sets 'a' and 'b'
+    
+    Conditions:
+    - Both are sets (`Set!S` or `Set!(XMLNode!S)` or `Set!(XMLNode!S.Attribute)`)  
+    - Identical types or a is `EmptyType`
+
+    Throws: `MatchException` if conditions false
+    ++/
+    auto opBinary(string op : "~")(Result!S operand)
+    {
+        alias doMatch = tryMatch!(
+            (EmptyType a, b) => Result(b),
+            (a, EmptyType b) => Result(a),
+            (Set!S a, Set!S b) => Result(a ~ b),
+            (Set!(XMLNode!S) a, Set!(XMLNode!S) b) => Result(a ~ b),
+            (Set!(XMLNode!S.Attribute) a, Set!(XMLNode!S.Attribute) b) => Result(a ~ b),
+        );
+        return doMatch(this, operand);
+    }
+
+    auto opOpAssign (string op : "~")(Result!S operand)
+    {
+        this.result = this ~ operand;
+        return this;
+    }
+
+    /// Result hold this type if its empty
+    private
+    enum EmptyType {
+        a = 0
+    }
+}
+
+
+unittest 
+{
+    Result!string r;
+
+    assert(r.getType() == ExprTypes.undefined);
+}
+
 
 
 import std.exception : basicExceptionCtors;
@@ -395,5 +389,11 @@ class TypePathException : Exception
         super(format("This must be started element. /%s/<%s>; %s", entity.path.joiner(`/`), entity.name, entity.type),
                 file, line);
     }
+}
+
+class DifferentResultTypeException : Exception
+{
+    ///
+    mixin basicExceptionCtors;
 }
 
