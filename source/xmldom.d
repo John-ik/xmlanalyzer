@@ -145,8 +145,33 @@ class XMLNode (S)
         case grammarName~".Expr":
             return xpath(node, path.children[0]);
         case grammarName~".OrExpr":
-            //TODO:
+            if (path.children.length == 1)
+                return xpath(node, path.children[0]);
+            assert(0);
+        case grammarName~".AndExpr":
+            if (path.children.length == 1)
+                return xpath(node, path.children[0]);
+            assert(0);
+        case grammarName~".EqualityExpr":
+            if (path.children.length == 1)
+                return xpath(node, path.children[0]);
+            assert(0);
+        case grammarName~".RelationalExpr":
+            if (path.children.length == 2)
+                assert(0);
             return xpath(node, path.children[0]);
+        case grammarName~".AdditiveExpr":
+            if (path.children.length == 1)
+                return xpath(node, path.children[0]);
+            assert(0);
+        case grammarName~".MultiplicativeExpr":
+            if (path.children.length == 2)
+                assert(0);
+            return xpath(node, path.children[0]);
+        case grammarName~".UnaryExpr":
+            if (path.children.length == 1)
+                return xpath(node, path.children[0]);
+            assert(0);
         case grammarName~".UnionExpr":
             if (path.children.length == 2)
                 // https://www.w3.org/TR/xpath-10/ Part 3.3

@@ -240,9 +240,15 @@ string checkComposotionElem(ParseTree p) @safe pure @nogc nothrow
 
 ExprTypes getExprType (ParseTree expr) @safe
 {
+    string of (string name) => grammarName~"."~name;
+
+    with (ExprTypes)
     final switch (expr.name)
     {
-    case grammarName~".Expr": return getExprType(expr[0]);
+    case of("Expr"): return getExprType(expr[0]);
+    case of("OrExpr"), of("AndExpr"), of("EqualityExpr"), of("RelationalExpr"):
+        return expr.children.length == 1 ? getExprType(expr[0]) : boolean;
+    case of("AdditiveExpr"), of("MultiplicativeExpr"):
     }
     assert(0);
 }

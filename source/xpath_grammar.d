@@ -4,8 +4,14 @@ module xpath_grammar;
 
 public import pegged.grammar;
 
+/// filename where store last failed ParseTree
 immutable XPathGrammarErrorDumpFile = "parseTreeDump.pegged.txt";
 
+/++
+Process XPath string to `ParseTree`
+
+If process failed dump it to `XPathGrammarErrorDumpFile` and throw `XPathParserException`
++/
 ParseTree parseXPath (string xpath)
 {
     if (xpath == "") return ParseTree.init;
@@ -39,45 +45,65 @@ XPathMini:
 
     LocationPath    <- (AbsoluteLocationPath / RelativeLocationPath)
     AbsoluteLocationPath    <-  AbbreviatedAbsoluteLocationPath
-                            /   '/' RelativeLocationPath?
-    AbbreviatedAbsoluteLocationPath <-  '//' RelativeLocationPath
-    RelativeLocationPath    <-  Step '//' RelativeLocationPath
-                            /   Step '/' RelativeLocationPath
+                            /   S? '/' S? RelativeLocationPath?
+    AbbreviatedAbsoluteLocationPath <-  S? '//' S? RelativeLocationPath
+    RelativeLocationPath    <-  Step S? '//' S? RelativeLocationPath
+                            /   Step S? '/'  S? RelativeLocationPath
                             /   Step
 
     Step    <-  AbbreviatedStep
             /   AxisSpecifier NodeTest Predicate*
-    AbbreviatedStep <-  '..'
-                    /   '.'
+    AbbreviatedStep <-  S? '..' S?
+                    /   S? '.'  S?
 
-    AxisSpecifier   <-  AxisName '::'
+    AxisSpecifier   <-  AxisName S? '::' S?
                     /   AbbreviatedAxisSpecifier
 
     NodeTest    <-  PiTest
-                /   TypeTest '()'
+                /   TypeTest S? '(' S? ')' S?
                 /   NameTest
-    PiTest  <-  'processing-instruction' '(' Literal ')'
-    TypeTest    <- 'processing-instruction' / 'comment' / 'text' / 'node'
-    NameTest    <-  '*'
-                /   Name
+    PiTest  <-  S? 'processing-instruction' S? '(' Literal ')' S?
+    TypeTest    <- S? ('processing-instruction' / 'comment' / 'text' / 'node') S?
+    NameTest    <-  S? ( '*'
+                /   Name ) S?
 
-    Predicate   <-  '[' Expr ']'
-    PrimaryExpr <-  '(' Expr ')'
-    #            /   VariableReference # //XXX: WHAT is this???
+    Predicate   <-  S? '[' S? Expr S? ']' S?
+    PrimaryExpr <-  S? '(' S? Expr S? ')' S?
+                /   VariableReference
                 /   Literal
                 /   Number
                 /   FunctionCall
-    FunctionCall    <-  FunctionName '(' ( Expr ( ',' Expr )* )? ')'
+    FunctionCall    <-  S? FunctionName S? '(' S? ( Expr ( S? ',' S? Expr )* )? S? ')' S?
     FunctionName    <-  !TypeTest Name
 
-    OrExpr  <-  # AndExpr # Я пока пропущу
-            /   UnionExpr
-    UnionExpr   <-  ( PathExpr '|' UnionExpr ) / PathExpr
+    OrExpr  <-  OrExpr S? 'or' S? AndExpr
+            /   AndExpr
+    AndExpr <-  AndExpr S? 'and'S? EqualityExpr
+            /   EqualityExpr
+    EqualityExpr    <-  EqualityExpr S? '=' S? RelationalExpr
+                    /   EqualityExpr S? '!=' S? RelationalExpr
+                    /   RelationalExpr
+    RelationalExpr  <-  RelationalExpr S? '<=' S? AdditiveExpr
+                    /   RelationalExpr S? '>=' S? AdditiveExpr
+                    /   RelationalExpr S? '<' S?  AdditiveExpr
+                    /   RelationalExpr S? '>' S?  AdditiveExpr
+                    /   AdditiveExpr
+    AdditiveExpr    <-  AdditiveExpr S? '+' S? MultiplicativeExpr
+                    /   AdditiveExpr S '-' S MultiplicativeExpr # Пробелы обязательны так как в именах xml разрешены '-'
+                    /   MultiplicativeExpr
+    MultiplicativeExpr  <-  MultiplicativeExpr S? '*' S? UnaryExpr
+                        /   MultiplicativeExpr S? 'div'S? UnaryExpr
+                        /   MultiplicativeExpr S? 'mod'S? UnaryExpr
+                        /   UnaryExpr
+    UnaryExpr   <- '-' UnaryExpr
+                /   UnionExpr
+    UnionExpr   <-  ( PathExpr S? '|' S? UnionExpr ) / PathExpr
     PathExpr    <-  FilterExpr / LocationPath
     FilterExpr  <-  (FilterExpr Predicate) / PrimaryExpr 
 
-    AbbreviatedAxisSpecifier    <- '@'?
-    AxisName    <-  'ancestor-or-self'	
+    AbbreviatedAxisSpecifier    <- (S? '@' S?)?
+    AxisName    <-  S? (
+                    'ancestor-or-self'	
                 /   'ancestor'	
                 /   'attribute'	
                 /   'child'	
@@ -90,16 +116,45 @@ XPathMini:
                 /   'preceding-sibling'	
                 /   'preceding'	
                 /   'self'
+                    ) S?
 
     NameStartChar <- ":" / [A-Z] / "_" / [a-z] / [\xC0-\xD6\xD8-\xF6]
     NameChar <- NameStartChar / "-" / "." / [0-9] / '\xB7'
     Name <~ NameStartChar (NameChar)*
 
-    Literal <~  quote (!quote .)* quote
+    VariableReference <- S? '$' Name S?
+    Literal <~  S? ( 
+                quote (!quote .)* quote
             /   doublequote (!doublequote .)* doublequote
-    Number  <~  '.' digits
+                ) S?
+    Number  <~  S? (
+                '.' digits
             /   digits ('.' digits?)?
+                ) S?
+
+
+    S   <-  (' ' / '\t' / '\n' / '\r')+
 `));
+
+
+unittest
+{
+    immutable arr = [
+        "/nodetest['predicate']",
+        "//@attribute",
+        "*[0]",
+        "*[1 + 1]",
+        "*[1 > 2]",
+        "node()",
+        "text()",
+        "comment()",
+        "processing-instruction()",
+        "processing-instruction('pi')",
+        "/ xpath / allow //  spaces / . / .. / node ( ) / * [0 + 1 mod 3 ] / child :: c / @ even-in-attrs "
+    ];
+    foreach (a; arr)
+        parseXPath(a);
+}
 
 /*
 mixin(grammar(`
