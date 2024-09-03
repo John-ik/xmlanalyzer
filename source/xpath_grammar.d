@@ -150,9 +150,11 @@ unittest
         "comment()",
         "processing-instruction()",
         "processing-instruction('pi')",
+        "processing-instruction ( 'pi' )",
         "/ xpath / allow //  spaces / . / .. / node ( ) / * [0 + 1 mod 3 ] / child :: c / @ even-in-attrs ",
         "1 + 1 mod 33 * 52",
-        "3 > 2 > 1", // false
+        "3 > 2 > 1", // false,
+        "//abstract | //note | //@attr"
     ];
     foreach (a; arr)
         parseXPath(a);
