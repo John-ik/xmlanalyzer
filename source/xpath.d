@@ -249,6 +249,11 @@ ExprTypes getExprType (ParseTree expr) @safe
     case of("OrExpr"), of("AndExpr"), of("EqualityExpr"), of("RelationalExpr"):
         return expr.children.length == 1 ? getExprType(expr[0]) : boolean;
     case of("AdditiveExpr"), of("MultiplicativeExpr"):
+        return expr.children.length == 1 ? getExprType(expr[0]) : number;
+    case of("UnaryExpr"):
+        return expr.matches[0] == "-" ? number : getExprType(expr[0]);
+    case of("UnionExpr"):
+        return expr.children.length == 1 ? getExprType(expr[0]) : nodeset;
     }
     assert(0);
 }
