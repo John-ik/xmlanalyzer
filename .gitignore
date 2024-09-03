@@ -24,3 +24,4 @@ xmlanalyzer_cli
 parseTreeDump.pegged.txt
 dub.selections.json
 cli/xmlanalyzer-cli
+TODO.md
