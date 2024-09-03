@@ -1,0 +1,9 @@
+<cfg>
+    <!--  xyz.bdaf.df78.xxxxx                                                                 -->
+    <!--  ^-- ^--- ^--- ^----                                                                 -->
+    <single-node value="value"/>
+    <another-node param="param">
+        <item/>
+        <item/>
+    </another-node>
+</cfg>
