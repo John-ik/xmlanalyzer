@@ -20,7 +20,7 @@ xmlanalyzer-test-*
 xmlanalyzer_gui
 xmlanalyzer_cli
 
-.vscode/launch.json
+.vscode/
 parseTreeDump.pegged.txt
 dub.selections.json
 cli/xmlanalyzer-cli
