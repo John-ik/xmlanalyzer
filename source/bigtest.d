@@ -85,3 +85,11 @@ unittest
 			n.name = "cfg";
 	}
 }
+
+
+// Issue #3
+unittest
+{
+	immutable testFile = "test/test1/test.xml";
+	auto a = parseAll([testFile]);
+}

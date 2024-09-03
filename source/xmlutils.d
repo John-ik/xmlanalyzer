@@ -178,17 +178,17 @@ R preProcessComments (R) (R xmlText)
 {
 	import std.regex;
 	auto re = regex(`(?<=(<!--[^(--)]*))(--)(?=([^(--)]*-->))`, "g");
-	return replaceAll(xmlText, re, "-_-");
+	return replaceAll(xmlText, re, "-_");
 }
 
 unittest
 {
 	immutable comment = `<!-- This is a comment -- Oops -->`;
-	immutable fixed   = `<!-- This is a comment -_- Oops -->`;
+	immutable fixed   = `<!-- This is a comment -_ Oops -->`;
 	assert(preProcessComments(comment) == fixed);
 }
 
-XMLNode!R[] parseAll (R)(in R[] xmlFiles, Flag!"preProcessComment" preProcessComment = No.preProcessComment) @safe
+XMLNode!R[] parseAll (R)(in R[] xmlFiles, Flag!"preProcessComment" preProcessComment = Yes.preProcessComment) @safe
 {
 	import std.file;
 	XMLNode!R[] docs;
