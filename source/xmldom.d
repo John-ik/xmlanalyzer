@@ -176,6 +176,9 @@ class XMLNode (S)
             if (path.children.length == 2)
                 // https://www.w3.org/TR/xpath-10/ Part 3.3
                 // Both operands must be node-set TODO: check type function
+                // ??? Эксперименты с firefox инспектором разработчика 
+                // показали, что это работает и со множеством аттрибутов
+                // так что примем, что тип должен быть любым множеством
                 return Result!S(xpath(node, path.children[0]).toNodes() ~ xpath(node, path.children[1]).toNodes());
             return xpath(node, path.children[0]);
         case grammarName~".PathExpr":
