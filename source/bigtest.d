@@ -92,4 +92,13 @@ unittest
 {
 	immutable testFile = "test/test1/test.xml";
 	auto a = parseAll([testFile]);
+	assert(a.length == 1);
+}
+
+
+unittest
+{
+	immutable testFile = "test/test2/test.xml";
+	auto a = parseAll([testFile]);
+	assert(a.length == 1);
 }
