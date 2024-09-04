@@ -1,0 +1,11 @@
+<app1 name="app1">
+	<input>
+		<!-- Input -->
+		<signal name="name2"/>
+	</input>
+
+	<output>
+		<!-- Output -->
+		<signal name="name1"/>
+	</output>
+</app1>
