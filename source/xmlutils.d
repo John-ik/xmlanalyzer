@@ -173,18 +173,37 @@ R[] getAllXmlFrom (R)(in R[] paths)
 	return files;
 }
 
+/++
+Take text from xml file and return new text with replaced every `--` in comments to `-_`
 
-R preProcessComments (R) (R xmlText)
+Its for avoid parser error because `--` in comments unstandarted.
+
+Date: Sep 08, 2024
++/
+R preProcessComments (R) (in R xmlText) @safe
 {
+	import std.string;
 	import std.regex;
-	auto re = regex(`(?<=(<!--[^(--)]*))(--)(?=([^(--)]*-->))`, "g");
-	return replaceAll(xmlText, re, "-_");
+	// find comments symbols and replace only into comment
+
+	string r = xmlText;
+	ptrdiff_t commentIndex = indexOf(r, "<!--");
+	ptrdiff_t endIndex = -1;
+	while (commentIndex > -1) 
+	{
+		endIndex = indexOf(r, "-->", commentIndex);
+		enforce(endIndex > -1, "Comment`s sign unballanced");
+		commentIndex += 3;
+		r = r[0..commentIndex] ~ replaceAll(r[commentIndex..endIndex], regex(`--`), "-_") ~ r[endIndex..$];
+		commentIndex = indexOf(r, "<!--", commentIndex + 1);
+	}
+	return r;
 }
 
 unittest
 {
-	immutable comment = `<!-- This is a comment -- Oops -->`;
-	immutable fixed   = `<!-- This is a comment -_ Oops -->`;
+	immutable comment = `<!-- This is a comment -- Oops --> <!-- The second ------ comment -->`;
+	immutable fixed   = `<!-- This is a comment -_ Oops --> <!-- The second -_-_-_ comment -->`;
 	assert(preProcessComments(comment) == fixed);
 }
 
