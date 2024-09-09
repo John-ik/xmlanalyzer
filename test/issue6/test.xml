@@ -1,0 +1,7 @@
+
+<!-- Test addFilePathAsAttr function -->
+<cfg>
+    <example>
+        example.com
+    </example>
+</cfg>

@@ -102,3 +102,11 @@ unittest
 	auto a = parseAll([testFile]);
 	assert(a.length == 1);
 }
+
+// Issue #6
+unittest
+{
+	immutable testFile = "test/issue6/test.xml";
+	auto a = parseAll([testFile]);
+	assert(a.length == 1);
+}

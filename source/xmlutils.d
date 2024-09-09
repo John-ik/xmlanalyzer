@@ -120,7 +120,14 @@ void addFilePathAsAttr (R) (ref XMLNode!R xml, R filePath) @safe
 in (isValidPath(filePath))
 {
 	//  Вернул старое рабочее
-	xml.children()[0].attributes() ~= (XMLNode!R).Attribute(FILENAME_ATTR, filePath, TextPos2(-1, -1));
+	size_t i = 0;
+	XMLNode!R node = xml.children()[i++];
+	while (node.type() != EntityType.elementStart)
+	{
+		enforce(i < xml.children().length, "All nodes is comment?");
+		node = xml.children()[i++];
+	}
+	node.attributes() ~= (XMLNode!R).Attribute(FILENAME_ATTR, filePath, TextPos2(-1, -1));
 	return; 
 
 	//TODO:
