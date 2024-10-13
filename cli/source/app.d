@@ -1,16 +1,38 @@
 module app;
 
 import std.logger;
+
+import std.exception;
 import std.stdio;
+
+static import options;
 
 import xmldom;
 import xmlutils;
 import xpath_grammar;
+import bigtest;
 
 int main (string[] args)
 {
-	auto godXml = args[1..$].getAllXmlFrom().parseAll().makeGodXml();
+	options.begin(args, a => a[1..$].getAllXmlFrom());
 
+	// auto godXml = args[1..$].getAllXmlFrom().parseAll().makeGodXml();
+	XMLNode!string godXml;
+	if (options.god)
+		godXml = options.paths.parseAll().makeGodXml();
+	else if (options.paths.length == 1)
+		godXml = options.paths.parseAll()[0];
+	else
+		enforce(false, "Without god options. Allow only one xml file");
+
+
+	if (options.xpath)
+	{
+		writeln(godXml[options.xpath]);
+	}
+
+	if (!options.iteractive)
+		return 0;
 
 	string output = writeXmlFromDOM(godXml);
 	writeln(godXml);

@@ -365,6 +365,14 @@ struct Result (S)
         return this;
     }
 
+    //TODO:
+    /// Человеко-читаемый вывод
+    string toHumanString () @safe nothrow
+    {
+        assert(0);
+    }
+
+
     /// Result hold this type if its empty
     private
     enum EmptyType {
